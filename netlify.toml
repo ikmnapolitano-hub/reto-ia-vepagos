@@ -12,16 +12,12 @@
   NODE_VERSION = "20"
 
 [functions]
-  # Bundler zisi (zip-it-and-ship-it, default de Netlify): incluye
-  # node_modules en el zip del Lambda. Forzamos a incluir @netlify/blobs
-  # junto con sus dependencias transitivas (runtime-utils, dev-utils) por si
-  # zisi no las detecta automáticamente como sí hace con imports directos.
-  node_bundler = "zisi"
-  included_files = [
-    "node_modules/@netlify/blobs/**",
-    "node_modules/@netlify/runtime-utils/**",
-    "node_modules/@netlify/dev-utils/**"
-  ]
+  # esbuild empaqueta cada función como un único bundle ESM, resolviendo
+  # las dependencias del árbol completo (@netlify/blobs + transitivas)
+  # sin necesidad de included_files. Es el bundler recomendado por
+  # Netlify para funciones ESM (.mjs). zisi rompe con ESM puro porque
+  # genera wrappers CommonJS que hacen require() de archivos .mjs.
+  node_bundler = "esbuild"
 
 # Alias bonito para la función de sync (por si el config.path de la función no se aplica)
 [[redirects]]
