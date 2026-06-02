@@ -2,9 +2,10 @@
  * /.netlify/functions/sync — almacenamiento compartido del portal Reto IA.
  * Alias bonito en /api/sync (ver redirect en netlify.toml).
  *
- * Formato: ESM con `export const handler` (Functions v1 compatible con zisi).
- * El import estático de @netlify/blobs permite que zisi lo detecte y
- * lo incluya en el bundle del Lambda.
+ * Functions v2 (req, context). En v2 el contexto de Netlify Blobs se
+ * inyecta automáticamente y getStore() funciona sin pasar siteID/token.
+ * En v1 (export const handler), con esbuild, el SDK no siempre encuentra
+ * ese contexto y devuelve "environment has not been configured".
  */
 import { getStore } from '@netlify/blobs';
 
@@ -15,19 +16,18 @@ const CORS = {
   'cache-control': 'no-store'
 };
 
-function json(obj, statusCode = 200) {
-  return {
-    statusCode,
-    headers: { 'content-type': 'application/json', ...CORS },
-    body: JSON.stringify(obj)
-  };
+function json(obj, status = 200) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { 'content-type': 'application/json', ...CORS }
+  });
 }
 
-export const handler = async (event) => {
-  const method = (event.httpMethod || '').toUpperCase();
+export default async (req) => {
+  const method = req.method.toUpperCase();
 
   if (method === 'OPTIONS') {
-    return { statusCode: 204, headers: CORS, body: '' };
+    return new Response('', { status: 204, headers: CORS });
   }
 
   let store;
@@ -43,8 +43,8 @@ export const handler = async (event) => {
 
   try {
     if (method === 'GET') {
-      const qs = event.queryStringParameters || {};
-      if (qs.ts === '1') {
+      const url = new URL(req.url);
+      if (url.searchParams.get('ts') === '1') {
         const tsRaw = await store.get('ts');
         return json({ ts: tsRaw ? Number(tsRaw) : 0 });
       }
@@ -57,7 +57,7 @@ export const handler = async (event) => {
     }
 
     if (method === 'POST' || method === 'PUT') {
-      const body = event.body || '';
+      const body = await req.text();
       try { JSON.parse(body); } catch (e) {
         return json({ ok: false, error: 'invalid_json', detail: String(e.message || e) }, 400);
       }
