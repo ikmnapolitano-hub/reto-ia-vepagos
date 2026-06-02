@@ -1,0 +1,13 @@
+{
+  "name": "reto-ia-vepagos-site",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Sitio estático Reto IA Vepagos + Netlify Functions de sync y notificaciones",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^9.0.0",
+    "@netlify/runtime-utils": "^2.1.0"
+  }
+}

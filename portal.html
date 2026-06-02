@@ -1,0 +1,2914 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Portal Reto IA · Vepagos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
+<style>
+:root{
+  --vp-green:#00CE7C; --vp-green-deep:#00B36C;
+  --vp-navy:#001F60; --vp-navy-2:#001847;
+  --vp-blue-soft:#6C7AA8; --vp-blue-pale:#E5E9F2;
+  --vp-bg:#FFFFFF; --vp-bg-soft:#F6F8FB;
+  --vp-text:#001F60; --vp-text-2:#34406B; --vp-text-soft:#5A6685;
+  --vp-line:#E1E5EE;
+  --vp-amber:#F59E0B; --vp-red:#DC2626;
+  --r:14px; --r-lg:20px;
+  --sh:0 1px 0 rgba(0,31,96,.06),0 8px 24px rgba(0,31,96,.06);
+  --f:'Barlow','Bahnschrift','Inter',system-ui,sans-serif;
+  --fd:'Barlow Condensed','Bahnschrift',sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--f);color:var(--vp-text);background:var(--vp-bg-soft);line-height:1.5;font-size:15px;-webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
+a{color:var(--vp-navy);text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+input,textarea,select{font-family:inherit;font-size:14px}
+
+/* ===== LOGIN ===== */
+.login-wrap{min-height:100vh;display:grid;place-items:center;padding:2rem;background:linear-gradient(135deg,var(--vp-navy) 0%,#002a80 60%,var(--vp-navy-2) 100%)}
+.login-card{background:#fff;border-radius:var(--r-lg);overflow:hidden;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-head{background:var(--vp-navy);padding:1.5rem 2rem;text-align:center;border-bottom:3px solid var(--vp-green)}
+.login-head img{height:38px;margin:0 auto;display:block}
+.login-body{padding:2rem 2.25rem 2.25rem}
+.login-card h1{font-family:var(--fd);font-size:1.6rem;margin:0 0 .25rem;font-weight:700;letter-spacing:.01em}
+.login-card .sub{color:var(--vp-text-soft);margin:0 0 1.75rem;font-size:.95rem}
+.field{margin-bottom:1rem}
+.field label{display:block;font-family:var(--fd);font-weight:600;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--vp-text-2);margin-bottom:.4rem}
+.field input,.field textarea,.field select{width:100%;padding:.7rem .85rem;border:1.5px solid var(--vp-line);border-radius:10px;background:#fff;color:var(--vp-text);transition:border-color .15s}
+.field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--vp-green)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.75rem 1.25rem;border-radius:999px;border:none;font-family:var(--fd);font-weight:700;font-size:.95rem;letter-spacing:.04em;text-transform:uppercase;transition:transform .1s,background .15s}
+.btn:active{transform:translateY(1px)}
+.btn--primary{background:var(--vp-green);color:var(--vp-navy)}
+.btn--primary:hover{background:var(--vp-green-deep)}
+.btn--ghost{background:transparent;color:var(--vp-navy);border:1.5px solid var(--vp-line)}
+.btn--ghost:hover{border-color:var(--vp-navy)}
+.btn--navy{background:var(--vp-navy);color:#fff}
+.btn--danger{background:var(--vp-red);color:#fff}
+.btn--sm{padding:.45rem .85rem;font-size:.8rem}
+.btn--block{width:100%}
+.err{background:#FEE2E2;color:#991B1B;padding:.6rem .85rem;border-radius:8px;font-size:.85rem;margin-bottom:1rem}
+.ok{background:#DCFCE7;color:#166534;padding:.6rem .85rem;border-radius:8px;font-size:.85rem;margin-bottom:1rem}
+.muted{color:var(--vp-text-soft);font-size:.85rem}
+
+/* ===== APP ===== */
+.topbar{background:var(--vp-navy);color:#fff;padding:.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;position:sticky;top:0;z-index:50}
+.topbar img{height:30px}
+.topbar .user{display:flex;align-items:center;gap:.85rem}
+.topbar .user-name{font-weight:600;font-size:.9rem}
+.topbar .user-role{font-family:var(--fd);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--vp-green);background:rgba(0,206,124,.12);padding:.2rem .55rem;border-radius:999px}
+.topbar button{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.25);padding:.4rem .85rem;border-radius:999px;font-size:.8rem;font-family:var(--fd);letter-spacing:.04em;text-transform:uppercase}
+.topbar button:hover{border-color:var(--vp-green)}
+
+.layout{display:grid;grid-template-columns:240px 1fr;min-height:calc(100vh - 60px)}
+.sidebar{background:#fff;border-right:1px solid var(--vp-line);padding:1.25rem .75rem;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto}
+.role-switcher{margin-bottom:1rem;padding:.5rem .75rem;background:var(--vp-bg-soft);border-radius:10px}
+.role-switcher label{font-family:var(--fd);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--vp-text-soft);display:block;margin-bottom:.25rem}
+.role-switcher select{width:100%;border:1px solid var(--vp-line);background:#fff;padding:.4rem .5rem;border-radius:6px}
+.navsection{font-family:var(--fd);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--vp-text-soft);padding:.75rem .75rem .3rem}
+.navitem{display:flex;align-items:center;gap:.6rem;padding:.55rem .75rem;border-radius:8px;font-size:.9rem;color:var(--vp-text-2);cursor:pointer;margin-bottom:.15rem;border:none;background:transparent;width:100%;text-align:left}
+.navitem:hover{background:var(--vp-bg-soft);color:var(--vp-navy)}
+.navitem.active{background:var(--vp-navy);color:#fff}
+.navitem.active .ico{color:#fff}
+.ico{width:18px;color:var(--vp-blue-soft);font-size:1rem;text-align:center}
+
+.main{padding:1.75rem 2rem;max-width:100%;overflow-x:hidden}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.sidebar{position:static;height:auto}.main{padding:1.25rem}}
+
+.page-title{font-family:var(--fd);font-size:1.8rem;font-weight:700;margin:0 0 .25rem;letter-spacing:.005em}
+.page-sub{color:var(--vp-text-soft);margin:0 0 1.5rem}
+
+.card{background:#fff;border-radius:var(--r);border:1px solid var(--vp-line);padding:1.25rem 1.4rem;margin-bottom:1rem;box-shadow:var(--sh)}
+.card h3{font-family:var(--fd);font-size:1.05rem;font-weight:700;margin:0 0 .75rem;letter-spacing:.01em;text-transform:uppercase}
+.card h4{font-family:var(--fd);font-size:.9rem;font-weight:700;margin:0 0 .5rem;letter-spacing:.04em;text-transform:uppercase;color:var(--vp-text-2)}
+
+.grid{display:grid;gap:1rem}
+.g2{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+
+.kpi{padding:1rem;background:#fff;border:1px solid var(--vp-line);border-radius:var(--r)}
+.kpi .label{font-family:var(--fd);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--vp-text-soft);margin:0 0 .3rem}
+.kpi .value{font-family:var(--fd);font-size:1.7rem;font-weight:700;color:var(--vp-navy)}
+
+.badge{display:inline-block;font-family:var(--fd);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;padding:.2rem .6rem;border-radius:999px;font-weight:600}
+.badge--green{background:rgba(0,206,124,.15);color:var(--vp-green-deep)}
+.badge--amber{background:rgba(245,158,11,.15);color:#B45309}
+.badge--red{background:rgba(220,38,38,.12);color:var(--vp-red)}
+.badge--navy{background:rgba(0,31,96,.1);color:var(--vp-navy)}
+.badge--gray{background:var(--vp-bg-soft);color:var(--vp-text-soft)}
+
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{text-align:left;font-family:var(--fd);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--vp-text-soft);padding:.6rem .65rem;border-bottom:2px solid var(--vp-line)}
+td{padding:.7rem .65rem;border-bottom:1px solid var(--vp-line);vertical-align:top}
+tr:hover td{background:var(--vp-bg-soft)}
+
+.tabs{display:flex;gap:.25rem;border-bottom:2px solid var(--vp-line);margin:0 0 1.25rem;overflow-x:auto}
+.tab{background:transparent;border:none;padding:.65rem 1rem;font-family:var(--fd);font-size:.85rem;letter-spacing:.06em;text-transform:uppercase;color:var(--vp-text-soft);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap}
+.tab:hover{color:var(--vp-navy)}
+.tab.active{color:var(--vp-navy);border-bottom-color:var(--vp-green);font-weight:700}
+
+.uploaded{display:flex;align-items:center;justify-content:space-between;padding:.65rem .85rem;background:var(--vp-bg-soft);border:1px solid var(--vp-line);border-radius:8px;margin-bottom:.5rem;font-size:.88rem}
+.uploaded .meta{color:var(--vp-text-soft);font-size:.78rem}
+.upload-btn{display:inline-block;padding:.6rem 1rem;background:var(--vp-bg-soft);border:1.5px dashed var(--vp-blue-soft);border-radius:10px;color:var(--vp-navy);cursor:pointer;font-family:var(--fd);font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:.85rem;text-align:center}
+.upload-btn:hover{border-color:var(--vp-green);background:#fff}
+.upload-btn input{display:none}
+
+.swatch{display:flex;flex-direction:column;border-radius:10px;overflow:hidden;border:1px solid var(--vp-line)}
+.swatch .color{height:80px}
+.swatch .info{padding:.55rem .75rem;background:#fff;font-size:.78rem}
+.swatch .info strong{display:block;font-family:var(--fd);font-size:.9rem;letter-spacing:.02em}
+
+.feedback-thread{margin-top:.75rem;max-height:300px;overflow-y:auto}
+.feedback-item{padding:.7rem .85rem;background:var(--vp-bg-soft);border-left:3px solid var(--vp-green);border-radius:6px;margin-bottom:.6rem;font-size:.88rem}
+.feedback-item .who{font-weight:700;color:var(--vp-navy)}
+.feedback-item .when{color:var(--vp-text-soft);font-size:.75rem;margin-left:.5rem}
+
+textarea{min-height:80px;resize:vertical}
+
+.score-input{display:flex;align-items:center;gap:.5rem}
+.score-input input{width:70px;text-align:center}
+
+.split{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:700px){.split{grid-template-columns:1fr}}
+
+.status-banner{padding:1rem 1.25rem;border-radius:var(--r);margin-bottom:1.25rem;border-left:4px solid var(--vp-green);background:linear-gradient(90deg,rgba(0,206,124,.08),rgba(0,206,124,0))}
+.status-banner.rej{border-left-color:var(--vp-red);background:linear-gradient(90deg,rgba(220,38,38,.08),rgba(220,38,38,0))}
+.status-banner.pen{border-left-color:var(--vp-amber);background:linear-gradient(90deg,rgba(245,158,11,.08),rgba(245,158,11,0))}
+.status-banner h3{margin:0 0 .3rem;font-family:var(--fd);font-size:1.1rem;letter-spacing:.02em}
+.status-banner p{margin:0;color:var(--vp-text-2)}
+
+.hidden{display:none!important}
+
+.criteria-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:.75rem;padding:.55rem 0;border-bottom:1px dashed var(--vp-line);align-items:center;font-size:.9rem}
+.criteria-row:last-child{border-bottom:none}
+.criteria-row strong{font-family:var(--fd);font-size:.95rem;letter-spacing:.01em}
+
+.screen-thumb{aspect-ratio:16/10;background:linear-gradient(135deg,var(--vp-navy),#002a80);border-radius:10px;display:grid;place-items:center;color:#fff;font-family:var(--fd);font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:.85rem;padding:1rem;text-align:center;border:1px solid var(--vp-line)}
+.screen-thumb.alt{background:linear-gradient(135deg,var(--vp-green),var(--vp-green-deep));color:var(--vp-navy)}
+.screen-thumb.pale{background:var(--vp-blue-pale);color:var(--vp-navy);border:1px solid var(--vp-blue-soft)}
+
+.font-sample{padding:1rem 1.25rem;border:1px solid var(--vp-line);border-radius:10px;background:#fff}
+.font-sample .label{font-family:var(--fd);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--vp-text-soft);margin-bottom:.35rem}
+.f-cond{font-family:var(--fd);font-size:1.5rem;font-weight:700;letter-spacing:.01em}
+.f-body{font-family:var(--f);font-size:1rem}
+
+select.role-pick{padding:.35rem .5rem;border:1px solid var(--vp-line);border-radius:6px;background:#fff}
+
+.toolbar{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}
+.search{flex:1;min-width:220px;padding:.55rem .85rem;border:1.5px solid var(--vp-line);border-radius:10px;background:#fff}
+.search:focus{outline:none;border-color:var(--vp-green)}
+
+.expandable{cursor:pointer}
+details summary{cursor:pointer;font-family:var(--fd);font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:.85rem;color:var(--vp-navy);padding:.4rem 0}
+details[open] summary{margin-bottom:.5rem}
+
+/* Help FAB */
+#help-fab{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--vp-red);color:#fff;border:none;padding:.85rem 1.25rem;border-radius:999px;font-family:var(--fd);font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:.85rem;box-shadow:0 10px 30px rgba(220,38,38,.35);z-index:90;display:flex;align-items:center;gap:.5rem;transition:transform .15s,box-shadow .15s}
+#help-fab:hover{transform:translateY(-2px);box-shadow:0 14px 36px rgba(220,38,38,.45)}
+#help-fab.active{background:#991B1B}
+.modal{position:fixed;inset:0;background:rgba(0,31,96,.55);backdrop-filter:blur(4px);display:grid;place-items:center;padding:1rem;z-index:100}
+.modal-card{background:#fff;border-radius:var(--r-lg);padding:1.75rem;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+
+/* Tarjeta en rojo si ayuda activa */
+tr.help-active td{background:rgba(220,38,38,.06)!important}
+tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
+
+/* Estado banner */
+.enroll-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.5rem;margin-top:.5rem}
+.enroll-step{padding:.5rem .75rem;border-radius:8px;background:var(--vp-bg-soft);border:1px solid var(--vp-line);display:flex;align-items:center;gap:.5rem;font-size:.85rem}
+.enroll-step.done{background:rgba(0,206,124,.1);border-color:var(--vp-green);color:var(--vp-green-deep)}
+.enroll-step .dot{width:18px;height:18px;border-radius:999px;display:grid;place-items:center;font-size:.7rem;color:#fff;background:var(--vp-blue-soft)}
+.enroll-step.done .dot{background:var(--vp-green)}
+
+/* Time bar */
+.timebar{height:14px;background:var(--vp-bg-soft);border-radius:999px;overflow:hidden;position:relative;border:1px solid var(--vp-line);margin:.5rem 0}
+.timebar .fill{height:100%;background:linear-gradient(90deg,var(--vp-green),var(--vp-green-deep))}
+.timebar .marks{position:absolute;inset:0;display:flex;pointer-events:none}
+.timebar .marks span{flex:1;border-right:1px dashed rgba(0,31,96,.2)}
+.timebar .marks span:last-child{border-right:none}
+
+/* Approve toggle prominente */
+.approve-bar{display:flex;align-items:center;gap:.75rem;padding:.85rem 1.25rem;border-radius:var(--r);margin-bottom:1rem;flex-wrap:wrap}
+.approve-bar.in{background:rgba(0,206,124,.1);border-left:5px solid var(--vp-green)}
+.approve-bar.out{background:rgba(220,38,38,.08);border-left:5px solid var(--vp-red)}
+.approve-bar.pen{background:rgba(245,158,11,.1);border-left:5px solid var(--vp-amber)}
+.approve-bar strong{font-family:var(--fd);font-size:1.05rem;text-transform:uppercase;letter-spacing:.02em}
+
+.pill-count{display:inline-block;background:var(--vp-red);color:#fff;font-family:var(--fd);font-size:.7rem;padding:.05rem .45rem;border-radius:999px;margin-left:.35rem}
+
+/* ===== GAMIFICACIÓN ===== */
+.rank-hero{background:linear-gradient(135deg,#001F60 0%,#003396 60%,#00CE7C 200%);color:#fff;border-radius:20px;padding:1.75rem;margin-bottom:1rem;box-shadow:0 16px 40px rgba(0,31,96,.25);position:relative;overflow:hidden}
+.rank-hero::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 90% 20%,rgba(0,206,124,.3),transparent 55%);pointer-events:none}
+.rank-hero .quote{font-family:var(--fd);font-size:.78rem;letter-spacing:.18em;text-transform:uppercase;color:rgba(0,206,124,1);margin-bottom:.5rem}
+.rank-hero h1{font-family:var(--fd);font-size:2.2rem;letter-spacing:.01em;margin:0;line-height:1.05}
+.rank-hero .position{display:flex;align-items:baseline;gap:.5rem;margin:1rem 0 .25rem}
+.rank-hero .pos-num{font-family:var(--fd);font-size:5rem;font-weight:800;line-height:1;background:linear-gradient(180deg,#00CE7C 0%,#00B36C 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:0 0 30px rgba(0,206,124,.4)}
+.rank-hero .pos-total{font-family:var(--fd);font-size:1.4rem;color:rgba(255,255,255,.6)}
+.rank-hero .pos-label{font-family:var(--fd);font-size:.85rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.75)}
+.rank-hero .gaps{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin-top:1.25rem;position:relative;z-index:1}
+.rank-hero .gap{background:rgba(255,255,255,.08);backdrop-filter:blur(8px);padding:.6rem .85rem;border-radius:10px;border:1px solid rgba(255,255,255,.12)}
+.rank-hero .gap-label{font-family:var(--fd);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.7);margin-bottom:.2rem}
+.rank-hero .gap-val{font-family:var(--fd);font-size:1.1rem;font-weight:700}
+
+/* Podio */
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:.5rem;margin:1.25rem 0 .5rem;min-height:140px}
+.podium-step{width:80px;text-align:center;position:relative}
+.podium-step .crown{font-size:1.4rem;margin-bottom:.2rem}
+.podium-step .avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#00CE7C,#00B36C);color:var(--vp-navy);font-family:var(--fd);font-weight:800;font-size:1.2rem;display:grid;place-items:center;margin:0 auto .3rem;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.podium-step .name{font-size:.75rem;font-weight:600;color:var(--vp-text);line-height:1.1;min-height:2.2em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.podium-step .pts{font-family:var(--fd);font-size:.85rem;color:var(--vp-text-soft);font-weight:700}
+.podium-step .base{background:linear-gradient(180deg,var(--vp-navy),var(--vp-navy-2));color:#fff;font-family:var(--fd);font-weight:800;font-size:1.5rem;display:grid;place-items:center;border-radius:8px 8px 0 0;margin-top:.4rem}
+.podium-step.first .base{height:80px;background:linear-gradient(180deg,#FFD700,#D4AF37);color:var(--vp-navy)}
+.podium-step.second .base{height:55px;background:linear-gradient(180deg,#C0C0C0,#9E9E9E);color:var(--vp-navy)}
+.podium-step.third .base{height:35px;background:linear-gradient(180deg,#CD7F32,#A0522D);color:#fff}
+.podium-step.you{transform:scale(1.05)}
+.podium-step.you .avatar{background:linear-gradient(135deg,#fff,var(--vp-green));color:var(--vp-navy);box-shadow:0 0 0 3px var(--vp-green),0 4px 12px rgba(0,206,124,.4)}
+
+/* Badges */
+.badges-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.65rem}
+.badge-tile{background:#fff;border:1.5px solid var(--vp-line);border-radius:14px;padding:.85rem .6rem;text-align:center;transition:transform .15s,box-shadow .15s,border-color .15s}
+.badge-tile:hover{transform:translateY(-2px)}
+.badge-tile.unlocked{border-color:var(--vp-green);background:linear-gradient(180deg,rgba(0,206,124,.04),rgba(0,206,124,.12));box-shadow:0 4px 16px rgba(0,206,124,.15)}
+.badge-tile.locked{opacity:.45;filter:grayscale(.9)}
+.badge-tile .icon{font-size:2rem;margin-bottom:.3rem}
+.badge-tile .name{font-family:var(--fd);font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--vp-navy)}
+.badge-tile .desc{font-size:.7rem;color:var(--vp-text-soft);margin-top:.2rem;line-height:1.2}
+
+/* Streak */
+.streak-card{display:flex;align-items:center;gap:1rem;background:linear-gradient(135deg,#FFB347 0%,#FF7043 100%);color:#fff;padding:1rem 1.25rem;border-radius:14px;margin-bottom:1rem;box-shadow:0 8px 24px rgba(255,112,67,.25)}
+.streak-card .flame{font-size:2.5rem;animation:flicker 1.6s ease-in-out infinite alternate}
+.streak-card .num{font-family:var(--fd);font-size:2rem;font-weight:800;line-height:1}
+.streak-card .label{font-family:var(--fd);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;opacity:.9}
+@keyframes flicker{0%,100%{transform:scale(1) rotate(-2deg);filter:brightness(1)}50%{transform:scale(1.1) rotate(2deg);filter:brightness(1.2)}}
+
+/* Confetti canvas */
+#confetti-canvas{position:fixed;inset:0;pointer-events:none;z-index:9998}
+
+/* Toast XP */
+.xp-pop{position:fixed;background:linear-gradient(135deg,#00CE7C,#00B36C);color:var(--vp-navy);padding:.5rem 1rem;border-radius:999px;font-family:var(--fd);font-weight:800;font-size:1.1rem;box-shadow:0 8px 24px rgba(0,206,124,.4);z-index:9999;pointer-events:none;animation:xpfloat 1.5s cubic-bezier(0.16,1,0.3,1) forwards}
+@keyframes xpfloat{0%{opacity:0;transform:translateY(0) scale(.5)}20%{opacity:1;transform:translateY(-20px) scale(1.2)}100%{opacity:0;transform:translateY(-120px) scale(1)}}
+
+/* Comparativos */
+.compare-row{display:flex;align-items:center;gap:.75rem;padding:.5rem 0}
+.compare-row .lbl{flex:0 0 160px;font-size:.85rem;color:var(--vp-text-2)}
+.compare-row .bar{flex:1;height:10px;background:var(--vp-bg-soft);border-radius:999px;overflow:hidden;position:relative}
+.compare-row .bar .fill{height:100%;background:linear-gradient(90deg,var(--vp-green),var(--vp-green-deep));transition:width .6s}
+.compare-row .bar .mark{position:absolute;top:-3px;width:3px;height:16px;background:var(--vp-navy);border-radius:2px}
+.compare-row .val{font-family:var(--fd);font-weight:700;font-size:.9rem;color:var(--vp-navy);min-width:50px;text-align:right}
+
+/* Chart wrapper */
+.chart-card{background:#fff;border:1px solid var(--vp-line);border-radius:var(--r);padding:1rem 1.2rem;box-shadow:var(--sh)}
+.chart-card h4{font-family:var(--fd);font-size:.85rem;letter-spacing:.06em;text-transform:uppercase;color:var(--vp-text-2);margin:0 0 .5rem}
+.chart-wrap{height:220px;position:relative}
+
+/* Activity feed */
+.feed-item{display:flex;align-items:flex-start;gap:.75rem;padding:.55rem 0;border-bottom:1px dashed var(--vp-line)}
+.feed-item:last-child{border-bottom:none}
+.feed-item .ico{width:34px;height:34px;border-radius:50%;background:var(--vp-bg-soft);display:grid;place-items:center;font-size:1rem;flex-shrink:0}
+.feed-item .ico.ok{background:rgba(0,206,124,.15);color:var(--vp-green-deep)}
+.feed-item .ico.help{background:rgba(220,38,38,.12);color:var(--vp-red)}
+.feed-item .ico.up{background:rgba(0,31,96,.1);color:var(--vp-navy)}
+.feed-item .meta{flex:1;font-size:.88rem}
+.feed-item .meta .when{color:var(--vp-text-soft);font-size:.72rem;font-family:var(--fd);text-transform:uppercase;letter-spacing:.06em}
+</style>
+</head>
+<body>
+
+<!-- =========================================================
+     Netlify Forms (hidden, only for build-time detection)
+     Configurar destinatarios en Netlify → Forms → Notifications
+     → Add notification → ikmnapolitano@gmail.com + cmorales@vepagos.com
+     ========================================================= -->
+<form name="help-alert" netlify netlify-honeypot="bot-field" hidden>
+  <input name="participante"/><input name="correo"/><input name="area"/><input name="gerente"/>
+  <textarea name="bloqueo"></textarea><input name="fecha"/><input name="portal"/>
+</form>
+<form name="daily-summary" netlify netlify-honeypot="bot-field" hidden>
+  <input name="fecha"/><input name="total_inscritos"/><input name="con_avance_hoy"/>
+  <input name="ayudas_activas"/><input name="resumen_html"/>
+</form>
+<form name="campaign-log" netlify netlify-honeypot="bot-field" hidden>
+  <input name="asunto"/><input name="destinatarios"/><input name="enviada_por"/><input name="fecha"/>
+  <textarea name="cuerpo"></textarea>
+</form>
+<form name="password-reset" netlify netlify-honeypot="bot-field" hidden>
+  <input name="correo"/><input name="nombre_registrado"/><textarea name="mensaje"></textarea><input name="fecha"/>
+</form>
+
+<!-- ============= LOGIN ============= -->
+<div id="login-view" class="login-wrap">
+  <div class="login-card">
+    <div class="login-head">
+      <img src="assets/vepagos-logo-white.png" alt="Vepagos"/>
+    </div>
+    <div class="login-body">
+      <h1>Portal Reto IA</h1>
+      <p class="sub">Ingresa con tu correo de inscripción. Si es tu primer ingreso, la clave es <strong>123456</strong>.</p>
+      <div id="login-err" class="err hidden"></div>
+      <div id="login-ok" class="ok hidden"></div>
+      <form id="login-form" onsubmit="event.preventDefault();doLogin()">
+        <div class="field">
+          <label>Correo</label>
+          <input type="email" id="li-email" required autocomplete="email" placeholder="tu.correo@vepagos.com"/>
+        </div>
+        <div class="field">
+          <label>Contraseña</label>
+          <input type="password" id="li-pass" required autocomplete="current-password" placeholder="123456"/>
+        </div>
+        <button type="submit" class="btn btn--primary btn--block">Ingresar</button>
+      </form>
+      <p style="margin-top:1rem;text-align:center"><a href="#" onclick="event.preventDefault();openForgotModal()" style="color:var(--vp-green-deep);font-size:.9rem">¿Olvidaste tu contraseña?</a></p>
+      <p class="muted" style="margin-top:.5rem;text-align:center;font-size:.85rem">¿No te inscribiste? Avisa a Catherine Morales o Isabella.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: olvidé mi contraseña -->
+<div id="forgot-modal" class="modal hidden" onclick="if(event.target===this)closeForgotModal()">
+  <div class="modal-card">
+    <h3 style="font-family:var(--fd);text-transform:uppercase;letter-spacing:.02em;margin:0 0 .5rem">Recuperar acceso</h3>
+    <p class="muted" style="margin:0 0 1rem">Avísanos tu correo. Catherine e Isabella te van a resetear la clave a <strong>123456</strong> en menos de 24 h. Reciben un email automático con tu solicitud.</p>
+    <div id="forgot-msg"></div>
+    <div class="field"><label>Tu correo</label><input type="email" id="forgot-email" placeholder="tu.correo@vepagos.com"/></div>
+    <div class="field"><label>Mensaje (opcional)</label><textarea id="forgot-note" placeholder="No me deja entrar / olvidé mi clave / etc."></textarea></div>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap">
+      <button class="btn btn--ghost btn--sm" onclick="closeForgotModal()">Cancelar</button>
+      <button class="btn btn--primary btn--sm" onclick="submitForgot()">Enviar solicitud</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============= APP ============= -->
+<div id="app-view" class="hidden">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:1rem">
+      <img src="assets/vepagos-logo-white.png" alt="Vepagos" style="height:26px;width:auto"/>
+      <span style="opacity:.5;font-size:1.2rem">|</span>
+      <strong style="font-family:var(--fd);letter-spacing:.04em;text-transform:uppercase;font-size:.95rem">Portal Reto IA</strong>
+    </div>
+    <div class="user">
+      <div style="text-align:right">
+        <div class="user-name" id="tb-name"></div>
+        <div style="font-size:.72rem;color:rgba(255,255,255,.65)" id="tb-area"></div>
+      </div>
+      <span class="user-role" id="tb-role">PARTICIPANTE</span>
+      <span id="sync-badge" onclick="diagnoseSync()" style="font-family:var(--fd);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,206,124,.85);cursor:pointer" title="Clic para diagnosticar">● Sincronizando…</span>
+      <button onclick="logout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="role-switcher hidden" id="role-switcher">
+        <label>Vista</label>
+        <select id="role-select" onchange="switchRole(this.value)"></select>
+      </div>
+      <div id="nav-participant">
+        <div class="navsection">Mi reto</div>
+        <button class="navitem active" data-page="resumen" onclick="goto('resumen')"><span class="ico">▸</span>Resumen</button>
+        <button class="navitem" data-page="problema" onclick="goto('problema')"><span class="ico">▸</span>Mi problema</button>
+        <button class="navitem" data-page="avances" onclick="goto('avances')"><span class="ico">▸</span>Avances semanales</button>
+        <button class="navitem" data-page="evaluacion" onclick="goto('evaluacion')"><span class="ico">▸</span>Evaluación</button>
+        <div class="navsection">Recursos</div>
+        <button class="navitem" data-page="recursos" onclick="goto('recursos')"><span class="ico">▸</span>Recursos del reto</button>
+        <button class="navitem" data-page="marca" onclick="goto('marca')"><span class="ico">▸</span>Manual de marca</button>
+        <button class="navitem" data-page="pantallas" onclick="goto('pantallas')"><span class="ico">▸</span>Pantallas guía</button>
+        <button class="navitem" data-page="carta" onclick="goto('carta')"><span class="ico">▸</span>Carta y términos</button>
+        <div class="navsection">Cuenta</div>
+        <button class="navitem" data-page="cuenta" onclick="goto('cuenta')"><span class="ico">▸</span>Mi cuenta</button>
+      </div>
+      <div id="nav-manager" class="hidden">
+        <div class="navsection">Gerente</div>
+        <button class="navitem active" data-page="g-equipo" onclick="goto('g-equipo')"><span class="ico">▸</span>Mi equipo</button>
+        <button class="navitem" data-page="g-detalle" onclick="goto('g-detalle')"><span class="ico">▸</span>Ver participante</button>
+        <div class="navsection">Recursos</div>
+        <button class="navitem" data-page="recursos" onclick="goto('recursos')"><span class="ico">▸</span>Recursos del reto</button>
+        <div class="navsection">Cuenta</div>
+        <button class="navitem" data-page="cuenta" onclick="goto('cuenta')"><span class="ico">▸</span>Mi cuenta</button>
+      </div>
+      <div id="nav-manager-extras" class="hidden">
+        <button class="navitem" data-page="recursos" onclick="goto('recursos')"><span class="ico">▸</span>Recursos del reto</button>
+      </div>
+      <div id="nav-admin" class="hidden">
+        <div class="navsection">Administración</div>
+        <button class="navitem active" data-page="a-tablero" onclick="goto('a-tablero')"><span class="ico">▸</span>Tablero</button>
+        <button class="navitem" data-page="a-participantes" onclick="goto('a-participantes')"><span class="ico">▸</span>Participantes</button>
+        <button class="navitem" data-page="a-ayuda" onclick="goto('a-ayuda')"><span class="ico">▸</span>Solicitudes de ayuda <span id="help-pill"></span></button>
+        <button class="navitem" data-page="a-detalle" onclick="goto('a-detalle')"><span class="ico">▸</span>Ficha participante</button>
+        <button class="navitem" data-page="a-resumen" onclick="goto('a-resumen')"><span class="ico">▸</span>Resumen diario</button>
+        <button class="navitem" data-page="a-marketing" onclick="goto('a-marketing')"><span class="ico">▸</span>Email marketing</button>
+        <button class="navitem" data-page="a-recursos" onclick="goto('a-recursos')"><span class="ico">▸</span>Editar recursos</button>
+        <button class="navitem" data-page="a-criterios" onclick="goto('a-criterios')"><span class="ico">▸</span>Criterios de evaluación</button>
+        <button class="navitem" data-page="a-config" onclick="goto('a-config')"><span class="ico">▸</span>Configuración del reto</button>
+        <div class="navsection">Cuenta</div>
+        <button class="navitem" data-page="cuenta" onclick="goto('cuenta')"><span class="ico">▸</span>Mi cuenta</button>
+      </div>
+    </aside>
+
+    <main class="main" id="main-content"></main>
+  </div>
+
+  <!-- Botón flotante de ayuda (solo participantes) -->
+  <button id="help-fab" class="hidden" onclick="openHelpModal()" title="¿Estás trancado?">🚨 Necesito ayuda</button>
+
+  <!-- Modal de ayuda -->
+  <div id="help-modal" class="modal hidden" onclick="if(event.target===this)closeHelpModal()">
+    <div class="modal-card">
+      <h3 style="font-family:var(--fd);text-transform:uppercase;letter-spacing:.02em;margin:0 0 .5rem">¿Dónde estás trancado?</h3>
+      <p class="muted" style="margin:0 0 1rem">Cuéntanos brevemente. Tu solicitud queda visible en rojo para los administradores y tu gerente — te van a contactar.</p>
+      <div id="help-current"></div>
+      <div class="field"><label>Describe tu bloqueo</label><textarea id="help-text" placeholder="Ej: no logro conectar Cursor con la API de OpenAI / no entiendo qué subir en Semana 2 / mi problema cambió de alcance…"></textarea></div>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn btn--ghost btn--sm" onclick="closeHelpModal()">Cancelar</button>
+        <button class="btn btn--danger btn--sm" id="help-resolve-btn" onclick="resolveOwnHelp()" style="display:none">Marcar como resuelto</button>
+        <button class="btn btn--primary btn--sm" onclick="submitHelp()">Solicitar ayuda</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   VEPAGOS · Portal Reto IA · Cliente sin backend
+   Persistencia: localStorage. Para producción, reemplazar
+   por una API real (auth, archivos, scoring).
+   ============================================================ */
+
+/* ---------- 1. SEMILLA DE PARTICIPANTES (desde CSV) ---------- */
+const SEED = [
+  {email:"dgranado@somosvepagos.com",name:"Diego Jose Granado Guedez",cargo:"Analista soporte técnico",area:"Atención al cliente",manager:"odumont@vepagos.com",problemas:["Recepción e ingreso manual de puntos de venta al taller (1-2 horas diarias).","Respuesta automática por Liveconnect y solución de fallas de programación.","Cambio de línea/SIM: solicitud manual de datos por correo para envío MRW."]},
+  {email:"lperez@vepagos.com",name:"Luis Felipe Perez Santaella",cargo:"Gerente de Operaciones y Posventa",area:"Operaciones",manager:"antoniopalermo180767@gmail.com",problemas:["Falta de un sistema centralizado de KPIs en tiempo real para medir el rendimiento del equipo de Operaciones y Posventa."]},
+  {email:"jmorales@vepagos.com",name:"Junairy Ledmary Morales Vanegas",cargo:"Coordinador",area:"Ventas",manager:"ayvic23@gmail.com",problemas:["Evitar que se pase algún código de afiliación para actualizar.","Reporte diario de ventas manual (≈1 hora) para verificar ventas por cargar."]},
+  {email:"gbriceno@somosvepagos.com",name:"Génesis Daymar Briceño Escobar",cargo:"Coordinador Post Venta",area:"Operaciones",manager:"lperez@vepagos.com",problemas:["Retraso en respuestas en LiveConnect por consulta manual y fragmentada de información del cliente."]},
+  {email:"ygutierrez@somosvepagos.com",name:"Yorfran Gutierrez",cargo:"Coord. Taller",area:"Sistemas",manager:"cmorales@vepagos.com",problemas:["Capacitación de soporte vía e-learning y manual de procesos internos.","Manual de fallas y soluciones para autogestión de clientes (WhatsApp/web/app).","Sistema de rastreo de gestión de equipos en taller para consulta rápida del cliente."]},
+  {email:"jalvarez@vepagos.com",name:"Jonathan Alvarez",cargo:"Coordinador de Cobranza",area:"Cobranzas",manager:"cmorales@vepagos.com",problemas:["Dashboard de cobranza diaria: 2-3 horas en limpieza/cruce manual de reportes bancarios.","Generación manual de cuotas y archivos de domiciliación para 15 bancos (≈2 horas)."]},
+  {email:"bvegas@somosvepagos.com",name:"Bryant De Jesús Vegas Vivas",cargo:"Analista Post Venta",area:"Operaciones",manager:"lperez@vepagos.com",problemas:["IA que gestione clientes suspendidos: mensaje automático para reactivar o suspender definitivamente.","IA que cargue documentos pre-llenados con datos del cliente para traspasos/cambios.","IA de primer nivel para retención de clientes con propuestas automáticas."]},
+  {email:"ngonzalez@vepagos.com",name:"Norelys Gonzalez",cargo:"Coordinadora",area:"Sistemas",manager:"cmorales@vepagos.com",problemas:["Cálculo y conciliación manual de comisiones con flujo de aprobaciones automatizado.","Centralización del seguimiento de estatus de proyectos y desarrollo de productos."]},
+  {email:"adasilva@somosvepagos.com",name:"Alcides Da Silva",cargo:"Desarrollador senior",area:"Sistemas",manager:"cmorales@vepagos.com",problemas:["Automatización de creación de usuarios nuevos: Domain Controller, acceso a máquina y ZKAccess."]},
+  {email:"lguevara@somosvepagos.com",name:"Lorean Paola Guevara Rojas",cargo:"Diseñador Gráfico",area:"Mercadeo",manager:"cmorales@vepagos.com",problemas:["Automatización de artes promocionales para aliados comerciales (variaciones de logo, nombre, fechas).","Generación automática de carnets, tarjetas de presentación y firmas para personal nuevo."]},
+  {email:"mdelgado@somosvepagos.com",name:"María Delgado",cargo:"Analista Jr Cobranza",area:"Sistemas",manager:"cmorales@vepagos.com",problemas:["Automatizar inactivación/activación en BDT de equipos que entran y salen de taller."]},
+  {email:"njaimes@somosvepagos.com",name:"Nileidy Albany Jaimes Davila",cargo:"Analista Junior",area:"Cobranzas",manager:"cmorales@vepagos.com",problemas:["Información errónea/inconsistente de distintas entidades bancarias que dificulta la cobranza."]},
+  {email:"lmartinez@somosvepagos.com",name:"Layfer Martínez",cargo:"Community Manager",area:"Mercadeo",manager:"cmorales@vepagos.com",problemas:["Agotamiento de ideas para planificación de contenido en redes sociales.","Efectos dinámicos e innovadores para edición de videos."]},
+  {email:"acarrera@somosvepagos.com",name:"Axel Ruben Carrera Ramirez",cargo:"Analista de atención al cliente",area:"Atención al cliente",manager:"odumont@vepagos.com",problemas:["Estrategia para ayudar a clientes con marketing digital y co-branding.","Automatización de procesos de afiliaciones (equipos nuevos, traspasos, cambios de banco).","Soporte 24/7 para fallas sencillas de operatividad en puntos de venta."]},
+  {email:"khernandez@somosvepagos.com",name:"Kleiverg Joel Hernandez Núñez",cargo:"Analista de Relaciones Bancarias",area:"Operaciones",manager:"lperez@vepagos.com",problemas:["Centralizar acceso a datos y automatizar la asignación de seriales para Ventas."]},
+  {email:"arodriguez@somosvepagos.com",name:"Anthony Leonardo Rodriguez Guillen",cargo:"Analista Senior Tecnología y Cobranza",area:"Cobranzas",manager:"cmorales@vepagos.com",problemas:["Reporte interactivo de ingresos diarios divididos por analista y tipo de pago (deuda/recuperación)."]},
+  {email:"llucena@somosvepagos.com",name:"Leslie Angely Lucena Guillen",cargo:"Analista de relaciones bancarias",area:"Operaciones",manager:"lperez@vepagos.com",problemas:["Carga masiva automática para notificación de comercios a distintas plataformas bancarias."]},
+  {email:"jcenteno@somosvepagos.com",name:"Juan Centeno",cargo:"Coordinador Mercadeo",area:"Mercadeo",manager:"cmorales@vepagos.com",problemas:["Planificación general del departamento de mercadeo, calendarios, organización, responsabilidades.","Identidad gráfica y sus correctos usos en toda la empresa.","Medición de resultados en redes sociales vs. competencia."]},
+  {email:"ghernandez@somosvepagos.com",name:"Grelvis Josbel Hernandez Zapata",cargo:"Coordinador de Logística y Envíos",area:"Operaciones",manager:"lperez@vepagos.com",problemas:["Validación manual de datos para guías MRW y Zoom.","Comunicación fragmentada de guías enviadas a vendedores aliados.","Conteo exacto del momento de entrega a clientes a nivel nacional."]},
+  {email:"dbohorquez@somosvepagos.com",name:"Daniel Ernesto Bohorquez Vera",cargo:"Coordinador de Operaciones",area:"Operaciones",manager:"lperez@vepagos.com",problemas:["Verificación automática de casos rechazados (serial, SIM, operadora) para optimizar tiempos."]},
+  {email:"ngamboa@somosvepagos.com",name:"Nicole Alexander Gamboa Freites",cargo:"Analista de infraestructura",area:"Sistemas",manager:"cmorales@vepagos.com",problemas:["NOC unificado: dashboard centralizado y sistema de alertas inteligente para infraestructura."]},
+  {email:"jgutierrez@somosvepagos.com",name:"Juan David Gutiérrez Osorio",cargo:"Analista de documentación",area:"Sistemas",manager:"cmorales@vepagos.com",problemas:["Transcripción y validación inteligente de PDFs vs. sistema de ventas."]},
+  {email:"jsulbaran@vepagos.com",name:"Jorfre Francisco Sulbaran Ortega",cargo:"Coordinador de Operaciones",area:"Operaciones",manager:"lperez@vepagos.com",problemas:["Unificar serial de equipo y SIM al momento de asignar a cada almacén.","Generación automática de nota de entrega para cambio de almacén.","Asignación de SIM al asignar equipo en Eureka para inventario exacto."]},
+  {email:"cbalza@somosvepagos.com",name:"Carlos David Balza",cargo:"Analista de Ventas",area:"Ventas",manager:"ayvic23@gmail.com",problemas:["Automatización de reportería bancaria mensual.","Gestión y control de ventas e inventario por vendedor con actualización automática.","Seguimiento de clientes desde prospecto hasta activación del equipo."]},
+  {email:"cmorales@vepagos.com",name:"Catherine Morales",cargo:"Gerente Ejecutivo",area:"Sistemas",manager:"cmorales@vepagos.com",problemas:["Consolidación y visualización automatizada de KPIs corporativos en dashboards en tiempo real.","Módulos visuales para mapear procesos internos e identificar ineficiencias con IA."]},
+  {email:"juliethr19@gmail.com",name:"Angie Juliette Rondón Meneses",cargo:"Analista de Servicio Técnico",area:"Atención al cliente",manager:"odumont@vepagos.com",problemas:["Copiloto de triaje y respuestas rápidas para soporte POS.","Agente de seguimiento y cierre de tickets inactivos vía WhatsApp.","Buscador inteligente de soluciones técnicas Vepagos."]},
+  {email:"gfagundez@somosvepagos.com",name:"Gustavo Enrique Fagundez Lozada",cargo:"Coordinador de atención al cliente",area:"Atención al cliente",manager:"odumont@vepagos.com",problemas:["Control de calidad automatizado para interacciones en LiveConnect.","Flujo automatizado de Cambios Generales (parámetros y sustitución de SIM).","Centralización de comunicación con bancos aliados (hoy en WhatsApp)."]},
+  {email:"ayvic23@gmail.com",name:"Aymara Gonzalez",cargo:"Gerente de Ventas",area:"Ventas",manager:"antoniopalermo180767@gmail.com",problemas:["Monitorización de actividad comercial con ponderación de gestión de vendedores por banco/modalidad.","Distribución de inventarios a nivel nacional en tiempo real.","Reportes automatizados de pagos de comisiones con Finanzas."]},
+  {email:"ricardavid2409@gmail.com",name:"Ricardo David Lopez Escalona",cargo:"Asistente de carga",area:"Ventas",manager:"ayvic23@gmail.com",problemas:["Validación automática de códigos de afiliación para evitar duplicados y rechazos.","Recuento semanal automático de ventas y códigos de afiliación.","Autocompletar formularios desde documentos adjuntos en la carga de ventas."]},
+  {email:"gbogado@somosvepagos.com",name:"Glady Maria Bogado Contreras",cargo:"Coordinadora de Programación",area:"Ventas",manager:"ayvic23@gmail.com",problemas:["Baja automática de puntos de venta programados cuando la SIM no está cargada en Eureka.","Reporte automático diario/mensual de equipos programados, dados de baja e incidencias."]},
+  {email:"kbuitrago@somosvepagos.com",name:"Kerwin Buitrago",cargo:"Analista de operaciones",area:"Ventas",manager:"ayvic23@gmail.com",problemas:["Filtrar por aliado los clientes por programar por antigüedad.","Identificación de clientes ilocalizables / números errados.","Separar clientes por parámetros, pendientes, programados y dados de baja del día."]},
+  {email:"jesus.dvd27@gmail.com",name:"Jesús Alejandro David Flores",cargo:"Coordinador de Capital Humano",area:"Administración",manager:"mgruber@vepagos.com",problemas:["Cruce automático de data biométrica y desktime para incidencias diarias (40 min).","Alertas automáticas de vencimiento de contratos y pase a fijo desde Profit.","Gestión automática de vacaciones, permisos y rebajas en la data."]},
+  {email:"antoniopalermo180767@gmail.com",name:"Antonio Generoso Palermo Capone",cargo:"Gerente General",area:"Ventas",manager:"antoniopalermo180767@gmail.com",problemas:["Carga automática de solicitud de inventarios según stock y jornadas por vendedor.","Envío periódico automatizado del reporte a Banesco/Sudeban con cierre mensual de POS.","Reporte mensual automático a cada banco con su posición en Vepagos."]},
+  {email:"tcarreno@somosvepagos.com",name:"Thalia Nathaly Carreño Martinez",cargo:"Analista de administración",area:"Administración",manager:"mgruber@vepagos.com",problemas:["Verificación diaria de 3 datas de 18 bancos en Bs y USD (hoy >1 semana).","Análisis de anticipos de clientes por antigüedad.","Verificación de data entre Eureka y Profit de clientes."]},
+  {email:"cesarars05@gmail.com",name:"Cesar",cargo:"Tesorero",area:"Administración",manager:"mgruber@vepagos.com",problemas:["Herramienta Excel integrada para retenciones IVA/ISLR y generación de TXT bancario.","Consolidación de comisiones de vendedores y generación de archivo TXT por método de pago."]},
+  {email:"odumont@vepagos.com",name:"Otniel Josué Dumont",cargo:"Gerente",area:"Atención al cliente",manager:"antoniopalermo180767@gmail.com",problemas:["Auditoría de calidad automatizada de chats y notas de voz en LiveConnect.","Sistema de alertas para programación remota (parámetros, programación, tránsito de SIM).","Capacitación e inducción automatizada para personal técnico, atención y cobranzas."]},
+  {email:"ikmnapolitano@gmail.com",name:"Isabella Makowski",cargo:"CPO",area:"Ventas",manager:"antoniopalermo180767@gmail.com",problemas:["Proyecto piloto: dashboard de cara al cliente con onboarding guiado por IA."]},
+  /* Gerente sin inscripción propia — acceso solo como gerente */
+  {email:"mgruber@vepagos.com",name:"Mayra Gruber",cargo:"Gerente de Administración",area:"Administración",manager:"antoniopalermo180767@gmail.com",problemas:[]}
+];
+
+/* Gerentes con correo conocido */
+const MANAGER_EMAILS = ["odumont@vepagos.com","lperez@vepagos.com","ayvic23@gmail.com","cmorales@vepagos.com","antoniopalermo180767@gmail.com","mgruber@vepagos.com","ikmnapolitano@gmail.com"];
+/* Admins (perfil administrador) */
+const ADMIN_EMAILS = ["ikmnapolitano@gmail.com","cmorales@vepagos.com"];
+
+/* Criterios de evaluación por defecto */
+const DEFAULT_CRITERIA = [
+  {id:"normativa",name:"Cumplimiento de Normativa Interna",desc:"Respeta políticas Vepagos, manejo de datos y procesos.",weight:15},
+  {id:"descuento",name:"Cláusula de Descuento y Compromiso",desc:"Carta firmada, asistencia, entrega de avances en tiempo.",weight:10},
+  {id:"problema",name:"Definición del Problema",desc:"Claridad, impacto medible, alineado a operación real.",weight:10},
+  {id:"solucion",name:"Calidad de la Solución con IA",desc:"Uso correcto de herramientas, prompts, modelos y datos.",weight:20},
+  {id:"viabilidad",name:"Viabilidad e Implementación",desc:"Funciona, se puede desplegar, costo razonable.",weight:15},
+  {id:"impacto",name:"Impacto en Vepagos",desc:"Horas/hombre ahorradas, errores reducidos, $ recuperados.",weight:15},
+  {id:"presentacion",name:"Presentación Final",desc:"Demo clara, métricas, look & feel de marca.",weight:10},
+  {id:"marca",name:"Apego al Manual de Marca",desc:"Colores, tipografía, logos, tono Vepagos en entregables.",weight:5}
+];
+
+const SEMANAS = [
+  {n:1,titulo:"Semana 1 · Diagnóstico y promesa",descripcion:"Define problema, medición base, herramientas y meta."},
+  {n:2,titulo:"Semana 2 · Prototipo IA",descripcion:"Primer prototipo funcional, prompts, flujo y pruebas."},
+  {n:3,titulo:"Semana 3 · Validación",descripcion:"Pruebas con usuarios reales, ajustes, métricas."},
+  {n:4,titulo:"Semana 4 · Entrega final",descripcion:"Demo, documentación, look & feel de marca, video."}
+];
+
+/* Fechas del reto (admin puede editar desde DB.config) */
+const DEFAULT_CONFIG = {
+  startISO: "2026-06-05",    // 5 jun 2026, viernes
+  weeks: 4,
+  platziMonthlyUSD: 29,
+  platziYearlyUSD: 250
+};
+
+/* Recursos por defecto (editable por admin) */
+const DEFAULT_RESOURCES = [
+  {id:"r1",titulo:"Cómo accedes al portal",cuerpo:"Entra a https://reto-ia-vepagos.netlify.app/portal.html con tu correo de inscripción. Tu clave inicial es 123456 — cámbiala desde Mi cuenta apenas ingreses.",link:""},
+  {id:"r2",titulo:"Plan Platzi del Reto (mensual · 29 USD)",cuerpo:"Durante el mes del reto, todos los inscritos tendrán acceso a Platzi por 29 USD. Vepagos cubre este monto. Te llegará un código de invitación al correo el día del kickoff.",link:"https://platzi.com/cursos/retoacademy/"},
+  {id:"r3",titulo:"Plan Platzi Expert (anual · 250 USD)",cuerpo:"Al cerrar el reto, las 10 a 15 personas con mayor compromiso y aprovechamiento se ganan 1 año completo de Platzi Expert (valor ≈ 250 USD/año). La selección la hace el comité con base en avances, calidad y participación.",link:""},
+  {id:"r4",titulo:"Cuentas de IA que conviene ir abriendo",cuerpo:"• ChatGPT — https://chat.openai.com (gratis o Plus 20 USD/mes)\n• Claude — https://claude.ai (gratis o Pro 20 USD/mes)\n• Google Gemini — https://gemini.google.com\n• Perplexity — https://www.perplexity.ai\n• Cursor (editor con IA) — https://cursor.com\n• Lovable / v0 — https://lovable.dev · https://v0.app (apps no-code con IA)\n• Notebook LM — https://notebooklm.google.com (para investigar)\n• Make / n8n / Zapier — automatización con IA",link:""},
+  {id:"r5",titulo:"Manual de marca Vepagos",cuerpo:"Verde #00CE7C, Navy #001F60, tipografía Bahnschrift (en web Barlow Condensed + Barlow). Logos disponibles en este mismo portal → Manual de marca. Todo entregable debe respetar estos elementos.",link:""},
+  {id:"r6",titulo:"Carta de compromiso",cuerpo:"Descarga, firma y vuelve a subir la carta antes de cerrar Semana 1. Incluye cláusula de propiedad intelectual (todo desarrollo es de Vepagos) y cláusula de descuento sobre Platzi Expert.",link:""},
+  {id:"r7",titulo:"Calendario del reto",cuerpo:"Semana 1: 5–11 jun · Diagnóstico\nSemana 2: 12–18 jun · Prototipo\nSemana 3: 19–25 jun · Validación\nSemana 4: 26 jun–2 jul · Entrega final y demo",link:""},
+  {id:"r8",titulo:"¿Dudas? Pide ayuda",cuerpo:"Si estás trancado en cualquier punto, usa el botón rojo flotante \"Necesito ayuda\" en la esquina inferior derecha. Tu caso se pondrá como prioridad para los admins.",link:""}
+];
+
+/* ---------- 2. ESTADO ---------- */
+var LS_KEY="vp-reto-ia-portal-v3";
+var DB = loadDB();
+var SESSION = null; // {email, activeRole}
+var CURRENT_PAGE = "resumen";
+var CURRENT_DETAIL_EMAIL = null;
+
+function loadDB(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw){
+      const db = JSON.parse(raw);
+      // migración suave: asegurar campos nuevos
+      if(!db.resources) db.resources = DEFAULT_RESOURCES;
+      if(!db.config) db.config = DEFAULT_CONFIG;
+      Object.values(db.users||{}).forEach(u=>{
+        if(typeof u.termsAccepted==="undefined") u.termsAccepted=false;
+        if(typeof u.termsAcceptedAt==="undefined") u.termsAcceptedAt=0;
+        if(typeof u.commitmentDownloaded==="undefined") u.commitmentDownloaded=false;
+        if(!Array.isArray(u.helpHistory)) u.helpHistory = [];
+        // Migrar de schema antiguo (helpRequest único) si quedó
+        if(u.helpRequest){
+          u.helpHistory.push({id:"hr"+u.helpRequest.ts, text:u.helpRequest.text, ts:u.helpRequest.ts, status:u.helpRequest.resolved?'resolved':'active', resolvedAt:u.helpRequest.resolvedAt||0, resolvedBy:'', resolution:''});
+          delete u.helpRequest;
+        }
+      });
+      if(!db.campaigns) db.campaigns = []; // email marketing
+      return db;
+    }
+  }catch(e){}
+  // Inicializar
+  const users = {};
+  SEED.forEach(p=>{
+    users[p.email.toLowerCase()] = {
+      email: p.email.toLowerCase(),
+      name: p.name,
+      cargo: p.cargo,
+      area: p.area,
+      manager: (p.manager||"").toLowerCase(),
+      problemas: p.problemas || [],
+      pass: "123456",
+      passChanged: false,
+      status: "pendiente", // pendiente | aprobado | rechazado
+      assignedProblem: "",  // texto editable por admin
+      approvedNote: "",
+      commitmentSigned: null, // {filename, dataUrl, ts}
+      commitmentDownloaded: false,
+      termsAccepted: false,
+      termsAcceptedAt: 0,
+      helpHistory: [], // [{id, text, ts, status:'active'|'resolved', resolvedBy, resolvedAt, resolution}]
+      progress: {1:{text:"",files:[]},2:{text:"",files:[]},3:{text:"",files:[]},4:{text:"",files:[]}},
+      scores: {}, // {criterioId: número}
+      feedback: [], // [{from,role,text,ts}]
+      created: Date.now()
+    };
+  });
+  // Auto-aprobar a todos por defecto y asignar problema 1
+  Object.values(users).forEach(u=>{
+    u.status = "aprobado";
+    u.assignedProblem = u.problemas[0] || "";
+    u.approvedNote = "Aprobado para participar. Ver problema asignado y comenzar Semana 1.";
+  });
+  return {users, criteria: DEFAULT_CRITERIA, resources: DEFAULT_RESOURCES, config: DEFAULT_CONFIG, campaigns: []};
+}
+function saveDB(){
+  localStorage.setItem(LS_KEY, JSON.stringify(DB));
+  pushRemote(); // sync al servidor compartido
+}
+
+/* ---------- SYNC REMOTO (Netlify Blobs) ----------
+   Permite que admins, gerentes y participantes vean los mismos datos.
+   Fallback automático a localStorage si /api/sync no está disponible
+   (ej. abrir el HTML directo sin Netlify). */
+var REMOTE_URLS = ['/api/sync','/.netlify/functions/sync'];
+var REMOTE_URL = REMOTE_URLS[0]; // se actualiza al primer pull exitoso
+var POLL_MS = 10000;
+var lastRemoteTs = 0;
+var syncEnabled = true;
+var syncError = '';
+var pushTimer = null;
+
+function setSyncBadge(state){
+  // state: 'ok' | 'pushing' | 'pulling' | 'off' | 'err'
+  const el = document.getElementById('sync-badge');
+  if(!el) return;
+  const map = {
+    ok:    {t:'● Sincronizado', c:'rgba(0,206,124,.85)'},
+    pushing:{t:'⟳ Guardando…', c:'#FBBF24'},
+    pulling:{t:'⟳ Actualizando…', c:'#FBBF24'},
+    off:   {t:'⚠ Local · sin sync', c:'#F87171'},
+    err:   {t:'⚠ Error de sync', c:'#F87171'}
+  };
+  const m = map[state]||map.ok;
+  el.textContent = m.t; el.style.color = m.c;
+}
+async function tryFetch(url, opts){
+  try{
+    const r = await fetch(url, opts);
+    return r;
+  }catch(e){ return null; }
+}
+async function pullRemote(){
+  if(!syncEnabled) return false;
+  setSyncBadge('pulling');
+  // Probar todas las URLs hasta que una funcione
+  for(const url of REMOTE_URLS){
+    const r = await tryFetch(url, {cache:'no-store'});
+    if(!r){ syncError='red bloqueada · '+url; continue; }
+    if(!r.ok){ syncError='HTTP '+r.status+' en '+url; continue; }
+    try{
+      const j = await r.json();
+      REMOTE_URL = url; // recordar cuál funcionó
+      syncError = '';
+      if(j && j.db && j.db.users){
+        DB = j.db;
+        if(!DB.resources) DB.resources = DEFAULT_RESOURCES;
+        if(!DB.config) DB.config = DEFAULT_CONFIG;
+        if(!DB.campaigns) DB.campaigns = [];
+        Object.values(DB.users).forEach(u=>{
+          if(typeof u.termsAccepted==="undefined") u.termsAccepted=false;
+          if(!Array.isArray(u.helpHistory)) u.helpHistory=[];
+          if(typeof u.commitmentDownloaded==="undefined") u.commitmentDownloaded=false;
+        });
+        lastRemoteTs = j.ts||0;
+        localStorage.setItem(LS_KEY, JSON.stringify(DB));
+      }
+      setSyncBadge('ok');
+      return !!(j && j.db);
+    }catch(e){ syncError='JSON parse error en '+url; }
+  }
+  syncEnabled=false; setSyncBadge('off');
+  return false;
+}
+async function pushRemote(){
+  if(!syncEnabled) return;
+  clearTimeout(pushTimer);
+  setSyncBadge('pushing');
+  pushTimer = setTimeout(async ()=>{
+    const r = await tryFetch(REMOTE_URL, {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(DB)});
+    if(!r){ setSyncBadge('err'); syncError='red bloqueada (push)'; return; }
+    if(!r.ok){ setSyncBadge('err'); syncError='HTTP '+r.status+' (push)'; return; }
+    try{
+      const j = await r.json();
+      if(j.ts) lastRemoteTs = j.ts;
+      syncError='';
+      setSyncBadge('ok');
+    }catch(e){ setSyncBadge('err'); syncError='parse error (push)'; }
+  }, 400);
+}
+/* Diagnóstico manual */
+async function diagnoseSync(){
+  let report = "=== DIAGNÓSTICO DE SYNC ===\n\nURLs configuradas:\n";
+  for(const url of REMOTE_URLS){
+    report += "\n• "+url+"\n";
+    const r = await tryFetch(url, {cache:'no-store'});
+    if(!r){ report += "  ✗ red bloqueada / no responde\n"; continue; }
+    report += "  → HTTP "+r.status+"\n";
+    if(r.ok){
+      try{
+        const j = await r.json();
+        report += "  ✓ JSON OK · db="+(j.db?(Object.keys(j.db.users||{}).length+" usuarios"):"vacío")+" · ts="+(j.ts||0)+"\n";
+      }catch(e){ report += "  ✗ no es JSON válido · "+(await r.text()).slice(0,200)+"\n"; }
+    } else {
+      report += "  ✗ error: "+(await r.text()).slice(0,200)+"\n";
+    }
+  }
+  report += "\nÚltimo error: "+(syncError||'(ninguno)')+"\nSync activo: "+syncEnabled+"\nÚltimo ts conocido: "+lastRemoteTs;
+  alert(report);
+}
+async function pollIfChanged(){
+  if(!syncEnabled || !SESSION) return;
+  try{
+    const r = await fetch(REMOTE_URL+'?ts=1', {cache:'no-store'});
+    if(!r.ok) return;
+    const j = await r.json();
+    if(j.ts && j.ts>lastRemoteTs){
+      // Cambios remotos detectados → traer y re-renderizar
+      const ok = await pullRemote();
+      if(ok){ goto(CURRENT_PAGE); applyRoleUI(); }
+    }
+  }catch(e){}
+}
+function startSyncPolling(){
+  pollIfChanged();
+  setInterval(pollIfChanged, POLL_MS);
+}
+
+/* ---------- 3. LOGIN ---------- */
+function openForgotModal(){
+  document.getElementById('forgot-modal').classList.remove('hidden');
+  document.getElementById('forgot-msg').innerHTML='';
+  document.getElementById('forgot-email').value = document.getElementById('li-email').value || '';
+  document.getElementById('forgot-note').value = '';
+}
+function closeForgotModal(){document.getElementById('forgot-modal').classList.add('hidden');}
+function submitForgot(){
+  const email = (document.getElementById('forgot-email').value||'').trim().toLowerCase();
+  const note = document.getElementById('forgot-note').value;
+  const msg = document.getElementById('forgot-msg');
+  if(!email || !/.+@.+\..+/.test(email)){msg.innerHTML='<div class="err">Pon un correo válido.</div>';return;}
+  const u = DB.users[email];
+  sendNetlifyForm('password-reset', {
+    correo: email,
+    nombre_registrado: u ? u.name : '(no registrado)',
+    mensaje: note,
+    fecha: new Date().toLocaleString('es-VE')
+  });
+  msg.innerHTML='<div class="ok">Solicitud enviada ✓ Catherine o Isabella la atenderán pronto.</div>';
+  setTimeout(closeForgotModal, 2500);
+}
+
+function doLogin(){
+  const email = document.getElementById("li-email").value.trim().toLowerCase();
+  const pass = document.getElementById("li-pass").value;
+  const u = DB.users[email];
+  const errBox = document.getElementById("login-err");
+  errBox.classList.add("hidden");
+  if(!u){errBox.textContent="Ese correo no está registrado en el reto."; errBox.classList.remove("hidden"); return;}
+  if(u.pass !== pass){errBox.textContent="Contraseña incorrecta. Si es tu primer ingreso, prueba 123456."; errBox.classList.remove("hidden"); return;}
+  // Determinar roles posibles
+  const roles = rolesFor(email);
+  SESSION = {email, activeRole: roles[0]};
+  saveSession();
+  showApp();
+}
+function logout(){SESSION=null;sessionStorage.removeItem("vp-session");document.getElementById("app-view").classList.add("hidden");document.getElementById("login-view").classList.remove("hidden");}
+function saveSession(){sessionStorage.setItem("vp-session",JSON.stringify(SESSION));}
+function tryRestore(){
+  try{
+    const s = sessionStorage.getItem("vp-session");
+    if(s){SESSION=JSON.parse(s); if(DB.users[SESSION.email]){showApp(); return true;}}
+  }catch(e){}
+  return false;
+}
+
+function rolesFor(email){
+  email = email.toLowerCase();
+  const roles = [];
+  if(ADMIN_EMAILS.includes(email)) roles.push("admin");
+  if(MANAGER_EMAILS.includes(email) || hasReports(email)) roles.push("manager");
+  const u = DB.users[email];
+  // Solo es "participante" si efectivamente envió problemas en la inscripción
+  if(u && u.problemas && u.problemas.length>0) roles.push("participant");
+  return roles.length ? roles : ["participant"];
+}
+function isRealParticipant(u){return u && u.problemas && u.problemas.length>0;}
+
+/* Estado de inscripción (3 pasos) */
+function enrollmentChecklist(u){
+  return [
+    {key:"letter_downloaded", label:"Carta descargada", done: !!u.commitmentDownloaded || !!u.commitmentSigned},
+    {key:"letter_signed", label:"Carta firmada subida", done: !!u.commitmentSigned},
+    {key:"terms_accepted", label:"Términos aceptados", done: !!u.termsAccepted}
+  ];
+}
+function enrollmentDone(u){return enrollmentChecklist(u).every(s=>s.done);}
+function enrollmentPct(u){const c=enrollmentChecklist(u);return Math.round(c.filter(s=>s.done).length/c.length*100);}
+
+/* Ritmo del reto vs. avances entregados */
+function challengeProgress(){
+  const cfg = DB.config;
+  const start = new Date(cfg.startISO+"T00:00:00");
+  const totalDays = cfg.weeks*7;
+  const now = new Date();
+  const elapsed = Math.max(0, (now-start)/(1000*60*60*24));
+  const dayInChallenge = Math.min(totalDays, elapsed);
+  const expectedWeek = elapsed<=0 ? 0 : Math.min(cfg.weeks, Math.ceil(elapsed/7));
+  const pctTime = Math.min(100, Math.max(0, (elapsed/totalDays)*100));
+  return {start, totalDays, elapsed, dayInChallenge, expectedWeek, pctTime, started: elapsed>0, finished: elapsed>=totalDays};
+}
+function paceFor(u){
+  const cp = challengeProgress();
+  const weeksWithProgress = Object.values(u.progress).filter(p=>p.text||p.files.length).length;
+  if(!cp.started) return {label:"Aún no arranca",cls:"badge--navy",ok:true,expected:0,have:weeksWithProgress};
+  const gap = cp.expectedWeek - weeksWithProgress;
+  let cls="badge--green",label="A tiempo";
+  if(gap>=2){cls="badge--red";label="Atrasado";}
+  else if(gap===1){cls="badge--amber";label="Apretado";}
+  return {label,cls,ok:gap<=0,expected:cp.expectedWeek,have:weeksWithProgress,gap};
+}
+function activeHelp(u){return u && Array.isArray(u.helpHistory) ? u.helpHistory.find(h=>h.status==='active') : null;}
+function hasActiveHelp(u){return !!activeHelp(u);}
+function hasReports(email){
+  email = email.toLowerCase();
+  return Object.values(DB.users).some(u=>u.manager===email);
+}
+
+/* ---------- 4. RENDER APP ---------- */
+async function showApp(){
+  document.getElementById("login-view").classList.add("hidden");
+  document.getElementById("app-view").classList.remove("hidden");
+  // Traer datos compartidos del servidor antes de pintar (1ª vez)
+  const fresh = await pullRemote();
+  // Si el server estaba vacío, mandamos nuestra DB local como semilla inicial
+  if(!fresh && syncEnabled){ await pushRemote(); }
+  startSyncPolling();
+  const u = DB.users[SESSION.email];
+  document.getElementById("tb-name").textContent = u.name;
+  document.getElementById("tb-area").textContent = u.cargo + " · " + u.area;
+
+  // Role switcher
+  const roles = rolesFor(SESSION.email);
+  const rsWrap = document.getElementById("role-switcher");
+  const rs = document.getElementById("role-select");
+  rs.innerHTML = roles.map(r=>`<option value="${r}" ${r===SESSION.activeRole?"selected":""}>${roleLabel(r)}</option>`).join("");
+  if(roles.length>1) rsWrap.classList.remove("hidden"); else rsWrap.classList.add("hidden");
+
+  applyRoleUI();
+  if(!u.passChanged) goto("cuenta-first"); else goto(defaultPage());
+  // Avisos al admin: campañas programadas pendientes + envío diario automático
+  if(SESSION.activeRole==='admin'){
+    setTimeout(maybeAutoDaily, 1500);
+    setTimeout(checkScheduledCampaigns, 2200);
+  }
+}
+function roleLabel(r){return r==="admin"?"Administrador":r==="manager"?"Gerente":"Participante";}
+function switchRole(r){SESSION.activeRole=r;saveSession();applyRoleUI();goto(defaultPage());}
+function applyRoleUI(){
+  const r = SESSION.activeRole;
+  document.getElementById("tb-role").textContent = roleLabel(r).toUpperCase();
+  document.getElementById("nav-participant").classList.toggle("hidden", r!=="participant");
+  document.getElementById("nav-manager").classList.toggle("hidden", r!=="manager");
+  document.getElementById("nav-admin").classList.toggle("hidden", r!=="admin");
+  // FAB de ayuda solo para participantes
+  const fab = document.getElementById("help-fab");
+  if(r==="participant"){
+    fab.classList.remove("hidden");
+    const u = DB.users[SESSION.email];
+    fab.classList.toggle("active", hasActiveHelp(u));
+    fab.innerHTML = hasActiveHelp(u) ? "🚨 Tienes una solicitud activa" : "🚨 Necesito ayuda";
+  } else {
+    fab.classList.add("hidden");
+  }
+  // Pill con count de ayuda en sidebar admin
+  const pill = document.getElementById("help-pill");
+  if(pill){
+    const n = Object.values(DB.users).filter(hasActiveHelp).length;
+    pill.innerHTML = n>0 ? `<span class="pill-count">${n}</span>` : "";
+  }
+}
+function defaultPage(){return SESSION.activeRole==="admin"?"a-tablero":SESSION.activeRole==="manager"?"g-equipo":"resumen";}
+
+function goto(page){
+  CURRENT_PAGE = page;
+  document.querySelectorAll(".navitem").forEach(b=>{
+    b.classList.toggle("active", b.dataset.page===page);
+  });
+  const main = document.getElementById("main-content");
+  main.innerHTML = "";
+  main.scrollTop = 0;
+  window.scrollTo({top:0,behavior:"instant"});
+  switch(page){
+    case "resumen": renderResumen(main); break;
+    case "problema": renderProblema(main); break;
+    case "avances": renderAvances(main); break;
+    case "evaluacion": renderEvaluacion(main); break;
+    case "recursos": renderRecursos(main); break;
+    case "marca": renderMarca(main); break;
+    case "pantallas": renderPantallas(main); break;
+    case "carta": renderCarta(main); break;
+    case "cuenta": case "cuenta-first": renderCuenta(main, page==="cuenta-first"); break;
+    case "g-equipo": renderManagerEquipo(main); break;
+    case "g-detalle": renderManagerDetalle(main); break;
+    case "a-tablero": renderAdminTablero(main); break;
+    case "a-participantes": renderAdminParticipantes(main); break;
+    case "a-ayuda": renderAdminAyuda(main); break;
+    case "a-detalle": renderAdminDetalle(main); break;
+    case "a-resumen": renderAdminResumen(main); break;
+    case "a-marketing": renderAdminMarketing(main); break;
+    case "a-marketing-edit": renderAdminMarketingEdit(main); break;
+    case "a-recursos": renderAdminRecursos(main); break;
+    case "a-criterios": renderAdminCriterios(main); break;
+    case "a-config": renderAdminConfig(main); break;
+  }
+  applyRoleUI(); // refrescar FAB/pill cada navegación
+}
+
+/* ---------- 5.a · GAMIFICACIÓN ---------- */
+const QUOTES = [
+  "El que aprende un poco cada día, en 4 semanas cambia todo. Hoy es ese día.",
+  "Tu problema diario ya tiene fecha de expiración. Atácalo.",
+  "Una hora de IA bien usada hoy te ahorra 40 esta semana.",
+  "No tienes que saber programar. Tienes que saber preguntar.",
+  "El primer prototipo siempre es feo. Súbelo igual.",
+  "El reto no es contra los demás. Es contra el tú de la semana pasada.",
+  "Empezar mal es mejor que esperar a empezar bien.",
+  "Las herramientas son gratis. La decisión de usarlas no.",
+  "Si te trancaste, escribe — alguien ya pasó por ahí.",
+  "El que entrega gana. Aunque entregue feo.",
+  "Hoy es buen día para sorprender a tu gerente.",
+  "Cada avance subido es un punto que tus competidores no tienen.",
+  "Vepagos te paga el tiempo de aprender. Aprovéchalo.",
+  "Top 10 no es para los más listos, es para los más constantes.",
+  "Un día sin tocar el proyecto es un día que regalas.",
+  "La IA no te reemplaza. Te multiplica.",
+  "Si te diera vergüenza tu primer borrador, vas bien.",
+  "Cada semana entregada es un nivel desbloqueado."
+];
+function quoteOfTheDay(){
+  const dayIdx = Math.floor(Date.now()/(1000*60*60*24));
+  return QUOTES[dayIdx % QUOTES.length];
+}
+
+/* Ranking — orden por puntaje desc, desempate por avances + carta + términos */
+function rankedParticipants(){
+  const all = Object.values(DB.users).filter(isRealParticipant);
+  return all.map(u=>{
+    const sc = sumScore(u).total;
+    const weeks = Object.values(u.progress).filter(p=>p.text||p.files.length).length;
+    const enr = enrollmentDone(u)?1:0;
+    return {u, sc, weeks, enr, ts: u.created||0};
+  }).sort((a,b)=> b.sc-a.sc || b.weeks-a.weeks || b.enr-a.enr || a.ts-b.ts);
+}
+function myRank(email){
+  const r = rankedParticipants();
+  const idx = r.findIndex(x=>x.u.email===email);
+  return {idx, position: idx+1, total: r.length, ranking: r};
+}
+
+/* PROGRESO objetivo: una métrica que sirve incluso cuando los puntajes son 0.
+   100 puntos repartidos en cosas que el participante controla:
+   - Inscripción (carta descargada + firmada + términos): 20
+   - Cada semana entregada (texto o archivo): 18 (=72 total las 4)
+   - Sin solicitudes de ayuda activas: 8
+   Esto da un orden real desde el día 1 sin depender del comité. */
+function progressFor(u){
+  let pts = 0;
+  if(u.commitmentDownloaded) pts += 5;
+  if(u.commitmentSigned)     pts += 8;
+  if(u.termsAccepted)        pts += 7;
+  for(let n=1;n<=4;n++){
+    const p = u.progress?.[n];
+    if(p && (p.text || (p.files||[]).length)) pts += 18;
+  }
+  if(!hasActiveHelp(u)) pts += 8;
+  return Math.min(100, pts);
+}
+function progressRanked(){
+  const all = Object.values(DB.users).filter(isRealParticipant);
+  return all.map(u=>({u, prog: progressFor(u), sc: sumScore(u).total, ts: u.created||0}))
+    .sort((a,b)=> b.prog-a.prog || b.sc-a.sc || a.ts-b.ts);
+}
+function myProgressRank(email){
+  const r = progressRanked();
+  const idx = r.findIndex(x=>x.u.email===email);
+  return {idx, position: idx+1, total: r.length, ranking: r, prog: r[idx]?.prog||0};
+}
+
+/* Badges (calculadas) */
+function badgesFor(u){
+  const weeks = Object.values(u.progress).filter(p=>p.text||p.files.length).length;
+  const totalFiles = Object.values(u.progress).reduce((a,p)=>a+(p.files||[]).length,0);
+  const helps = (u.helpHistory||[]).length;
+  const helpsResolved = (u.helpHistory||[]).filter(h=>h.status==='resolved').length;
+  const sc = sumScore(u).total;
+  const r = myRank(u.email);
+  const inTop10 = r.position>0 && r.position<=10;
+  const inTop3 = r.position>0 && r.position<=3;
+  const feedbackCount = (u.feedback||[]).length;
+  return [
+    {id:"pioneer", icon:"🚀", name:"Pionero", desc:"Te inscribiste al reto", on: !!u.email},
+    {id:"committed", icon:"✍️", name:"Comprometido", desc:"Carta firmada subida", on: !!u.commitmentSigned},
+    {id:"sealed", icon:"🔐", name:"Sellado", desc:"Inscripción 100% completa", on: enrollmentDone(u)},
+    {id:"first_step", icon:"🌱", name:"Primer paso", desc:"Subiste tu Semana 1", on: weeks>=1},
+    {id:"prototyper", icon:"🛠️", name:"Prototipista", desc:"Entregaste Semana 2", on: weeks>=2},
+    {id:"validator", icon:"🧪", name:"Validador", desc:"Entregaste Semana 3", on: weeks>=3},
+    {id:"finisher", icon:"🏁", name:"Finalista", desc:"Entregaste las 4 semanas", on: weeks>=4},
+    {id:"prolific", icon:"📚", name:"Prolífico", desc:"Más de 5 archivos subidos", on: totalFiles>=5},
+    {id:"asker", icon:"🙋", name:"Sin miedo a preguntar", desc:"Pediste ayuda al menos una vez", on: helps>=1},
+    {id:"top10", icon:"🥇", name:"Top 10", desc:"En los 10 mejores del reto", on: inTop10},
+    {id:"podium", icon:"🏆", name:"Podio", desc:"Top 3 del ranking", on: inTop3},
+    {id:"scored", icon:"📈", name:"Con puntaje", desc:"Tienes evaluación del comité", on: sc>0},
+    {id:"feedbacked", icon:"💬", name:"Escuchado", desc:"Recibiste feedback del equipo", on: feedbackCount>=1}
+  ];
+}
+function unlockedCount(u){return badgesFor(u).filter(b=>b.on).length;}
+
+/* Misiones / próximo reto · una lista de acciones concretas en orden lógico.
+   La 1ra que NO esté hecha es el "próximo reto" que se muestra grande. */
+function missionsFor(u){
+  const weeks = Object.values(u.progress).filter(p=>p.text||p.files.length).length;
+  return [
+    {id:"m_download", icon:"📥", title:"Descarga tu carta de compromiso", cta:"Ir a la carta", page:"carta", done: !!u.commitmentDownloaded || !!u.commitmentSigned},
+    {id:"m_terms",    icon:"✅", title:"Acepta los términos del programa", cta:"Aceptar términos", page:"carta", done: !!u.termsAccepted},
+    {id:"m_signed",   icon:"✍️", title:"Sube tu carta firmada", cta:"Subir carta", page:"carta", done: !!u.commitmentSigned},
+    {id:"m_brand",    icon:"🎨", title:"Conoce el manual de marca", cta:"Ver manual", page:"marca", done: !!localStorage.getItem('vp-visit-marca-'+u.email)},
+    {id:"m_resources",icon:"📚", title:"Revisa los recursos del reto", cta:"Ver recursos", page:"recursos", done: !!localStorage.getItem('vp-visit-recursos-'+u.email)},
+    {id:"m_week1",    icon:"🌱", title:"Sube tu Semana 1 (diagnóstico)", cta:"Ir a Semana 1", page:"avances", done: weeks>=1},
+    {id:"m_week2",    icon:"🛠️", title:"Sube tu Semana 2 (prototipo)", cta:"Ir a Semana 2", page:"avances", done: weeks>=2},
+    {id:"m_week3",    icon:"🧪", title:"Sube tu Semana 3 (validación)", cta:"Ir a Semana 3", page:"avances", done: weeks>=3},
+    {id:"m_week4",    icon:"🏁", title:"Sube tu Semana 4 (entrega final)", cta:"Ir a Semana 4", page:"avances", done: weeks>=4}
+  ];
+}
+function nextMission(u){
+  const ms = missionsFor(u);
+  return ms.find(m=>!m.done) || null;
+}
+
+/* Marcar visita a una página (para misiones de exploración) */
+function markVisit(page){
+  if(!SESSION) return;
+  if(['marca','recursos'].includes(page)){
+    localStorage.setItem('vp-visit-'+page+'-'+SESSION.email, '1');
+  }
+}
+
+/* Detección de insignias y misiones recién desbloqueadas */
+function celebrateNewUnlocks(u){
+  if(!u) return;
+  const seenKey = 'vp-seen-unlocks-'+u.email;
+  const seen = new Set((localStorage.getItem(seenKey)||'').split(',').filter(Boolean));
+  const nowUnlocked = badgesFor(u).filter(b=>b.on).map(b=>'b:'+b.id);
+  const nowMissions = missionsFor(u).filter(m=>m.done).map(m=>'m:'+m.id);
+  const all = [...nowUnlocked, ...nowMissions];
+  const fresh = all.filter(k=>!seen.has(k));
+  if(fresh.length){
+    // mostrar celebración por cada uno (con leve delay)
+    fresh.slice(0,3).forEach((k,i)=>setTimeout(()=>{
+      confetti();
+      const isBadge = k.startsWith('b:');
+      const id = k.slice(2);
+      const item = isBadge ? badgesFor(u).find(b=>b.id===id) : missionsFor(u).find(m=>m.id===id);
+      if(item){
+        toast((isBadge?'🏅 Insignia desbloqueada: ':'🎯 Reto cumplido: ')+(item.name||item.title));
+      }
+    }, 250 + i*900));
+  }
+  // Recordar para no volver a celebrar
+  localStorage.setItem(seenKey, all.join(','));
+}
+
+/* Streak: días distintos con upload en los últimos 14 días */
+function streakDays(u){
+  const days = new Set();
+  Object.values(u.progress||{}).forEach(p=>(p.files||[]).forEach(f=>{
+    if(f.ts){
+      const d = new Date(f.ts);
+      days.add(d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate());
+    }
+  }));
+  // Contar racha actual (días consecutivos hasta hoy)
+  let streak = 0;
+  const today = new Date();
+  for(let i=0;i<60;i++){
+    const d = new Date(today.getFullYear(),today.getMonth(),today.getDate()-i);
+    const k = d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+    if(days.has(k)) streak++;
+    else if(i===0) continue; // hoy puede estar vacío sin romper la racha
+    else break;
+  }
+  return streak;
+}
+
+/* Confetti — canvas inline */
+function confetti(){
+  let canvas = document.getElementById('confetti-canvas');
+  if(!canvas){
+    canvas = document.createElement('canvas');
+    canvas.id = 'confetti-canvas';
+    document.body.appendChild(canvas);
+  }
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio||1;
+  canvas.width = window.innerWidth*dpr; canvas.height = window.innerHeight*dpr;
+  canvas.style.width = window.innerWidth+'px'; canvas.style.height = window.innerHeight+'px';
+  ctx.scale(dpr,dpr);
+  const colors = ['#00CE7C','#00B36C','#FFD700','#001F60','#3B82F6','#F472B6','#FFB347'];
+  const parts = [];
+  for(let i=0;i<140;i++){
+    parts.push({
+      x: window.innerWidth/2 + (Math.random()-.5)*200,
+      y: window.innerHeight/2,
+      vx: (Math.random()-.5)*14,
+      vy: -8 - Math.random()*10,
+      g: .35,
+      size: 4+Math.random()*6,
+      rot: Math.random()*Math.PI,
+      vr: (Math.random()-.5)*.3,
+      color: colors[Math.floor(Math.random()*colors.length)],
+      shape: Math.random()<.5?'rect':'circle'
+    });
+  }
+  let frames=0;
+  function tick(){
+    frames++;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    parts.forEach(p=>{
+      p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.rot+=p.vr;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot); ctx.fillStyle=p.color;
+      if(p.shape==='rect') ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size*.6);
+      else { ctx.beginPath(); ctx.arc(0,0,p.size/2,0,Math.PI*2); ctx.fill(); }
+      ctx.restore();
+    });
+    if(frames<140) requestAnimationFrame(tick);
+    else { ctx.clearRect(0,0,canvas.width,canvas.height); }
+  }
+  tick();
+}
+function xpPop(x, y, txt){
+  const el = document.createElement('div');
+  el.className='xp-pop';
+  el.textContent = txt;
+  el.style.left = (x-30)+'px'; el.style.top = (y-30)+'px';
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 1600);
+}
+
+/* Activity feed (computado desde DB) */
+function buildActivityFeed(limit){
+  const all = Object.values(DB.users).filter(isRealParticipant);
+  const items = [];
+  all.forEach(u=>{
+    Object.entries(u.progress||{}).forEach(([n,p])=>{
+      (p.files||[]).forEach(f=>{
+        if(f.ts) items.push({ts:f.ts,type:'upload',user:u,text:`subió "${f.name}" en Semana ${n}`});
+      });
+    });
+    (u.helpHistory||[]).forEach(h=>{
+      if(h.ts) items.push({ts:h.ts,type:'help',user:u,text:`pidió ayuda: "${h.text.slice(0,80)}"`});
+      if(h.status==='resolved' && h.resolvedAt) items.push({ts:h.resolvedAt,type:'ok',user:u,text:`${h.resolvedBy||'admin'} resolvió un bloqueo`});
+    });
+    (u.feedback||[]).forEach(f=>{
+      if(f.ts) items.push({ts:f.ts,type:'msg',user:u,text:`recibió feedback de ${f.from}`});
+    });
+    if(u.commitmentSigned && u.commitmentSigned.ts) items.push({ts:u.commitmentSigned.ts,type:'ok',user:u,text:`firmó y subió la carta`});
+    if(u.termsAcceptedAt) items.push({ts:u.termsAcceptedAt,type:'ok',user:u,text:`aceptó los términos`});
+  });
+  return items.sort((a,b)=>b.ts-a.ts).slice(0,limit||25);
+}
+function feedIcon(type){
+  if(type==='upload') return '<span class="ico up">↑</span>';
+  if(type==='help')   return '<span class="ico help">🚨</span>';
+  if(type==='ok')     return '<span class="ico ok">✓</span>';
+  if(type==='msg')    return '<span class="ico ok">💬</span>';
+  return '<span class="ico">•</span>';
+}
+function timeAgo(ts){
+  const s = Math.max(1, Math.floor((Date.now()-ts)/1000));
+  if(s<60) return 'hace '+s+'s';
+  if(s<3600) return 'hace '+Math.floor(s/60)+'m';
+  if(s<86400) return 'hace '+Math.floor(s/3600)+'h';
+  return 'hace '+Math.floor(s/86400)+'d';
+}
+
+/* Iniciales para avatar */
+function initials(name){return (name||'').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();}
+
+/* ---------- 5. PARTICIPANTE ---------- */
+function renderResumen(main){
+  const u = DB.users[SESSION.email];
+  // Celebrar lo nuevo (insignias o retos cumplidos) si los hay
+  setTimeout(()=>celebrateNewUnlocks(u), 400);
+  const statusBanner = u.status==="aprobado"
+    ? "" // ya mostrado en el hero
+    : u.status==="rechazado"
+      ? `<div class="status-banner rej"><h3>Esta vez no quedaste</h3><p>${escapeHTML(u.approvedNote||"Gracias por inscribirte. En la próxima edición habrá nuevas plazas.")}</p></div>`
+      : `<div class="status-banner pen"><h3>Estamos revisando tu inscripción</h3><p>Pronto te avisaremos. Mientras tanto, revisa el manual de marca y la carta de compromiso.</p></div>`;
+
+  const score = sumScore(u);
+  const weeksDone = Object.values(u.progress).filter(p=>p.text||p.files.length).length;
+  const pace = paceFor(u);
+  const cp = challengeProgress();
+  const enrollPct = enrollmentPct(u);
+  const ah = activeHelp(u);
+  const helpBanner = ah
+    ? `<div class="status-banner rej"><h3>🚨 Tu solicitud de ayuda está activa</h3><p>"${escapeHTML(ah.text)}"</p><p style="margin-top:.5rem"><button class="btn btn--ghost btn--sm" onclick="openHelpModal()">Cerrar solicitud</button></p></div>` : "";
+
+  // Ranking de PROGRESO (sirve aunque nadie tenga puntaje aún)
+  const pr = myProgressRank(u.email);
+  const myProgress = pr.prog;
+  const tied = pr.ranking.filter(x=>x.prog===myProgress).length;
+  const avgProg = pr.ranking.length ? pr.ranking.reduce((a,x)=>a+x.prog,0)/pr.ranking.length : 0;
+  const aheadCount = pr.idx; // gente delante de mí
+  const behindCount = pr.ranking.length - pr.idx - 1;
+
+  main.innerHTML = `
+    <p class="page-sub" style="margin-top:0">Hola, ${escapeHTML(u.name.split(" ")[0])} 👋 — todo tu reto en un lugar.</p>
+
+    <!-- Frase del día (dopamina suave, sin números) -->
+    <div class="card" style="background:linear-gradient(135deg,#001F60 0%,#003396 100%);color:#fff;border:none">
+      <div style="font-family:var(--fd);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:#00CE7C;margin-bottom:.4rem">💡 Frase del día</div>
+      <div style="font-size:1.1rem;line-height:1.4">${escapeHTML(quoteOfTheDay())}</div>
+    </div>
+
+    ${helpBanner}
+    ${statusBanner}
+
+    <!-- PROGRESO real (no depende de puntaje) -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.5rem">
+        <div>
+          <h3 style="margin:0">Tu progreso en el reto</h3>
+          <p class="muted" style="margin:.2rem 0 0">${myProgress===0?'Aún no empiezas. Da el primer paso y subes al ranking al instante.':myProgress<50?'Vas arrancando — cada acción suma.':myProgress<80?'Vas muy bien — sigue así.':'¡Vas casi al 100%!'}</p>
+        </div>
+        <span class="badge ${myProgress>=80?'badge--green':myProgress>=40?'badge--amber':'badge--gray'}">${myProgress}% completado</span>
+      </div>
+      <div style="height:14px;background:var(--vp-bg-soft);border-radius:999px;overflow:hidden;border:1px solid var(--vp-line);margin:.5rem 0">
+        <div style="height:100%;width:${myProgress}%;background:linear-gradient(90deg,var(--vp-green),var(--vp-green-deep));transition:width .6s"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.5rem;margin-top:.85rem">
+        <div style="text-align:center;padding:.5rem;background:var(--vp-bg-soft);border-radius:8px">
+          <div style="font-family:var(--fd);font-size:1.4rem;font-weight:800;color:var(--vp-navy)">${aheadCount}</div>
+          <div class="muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">van delante</div>
+        </div>
+        <div style="text-align:center;padding:.5rem;background:rgba(0,206,124,.1);border-radius:8px;border:1.5px solid var(--vp-green)">
+          <div style="font-family:var(--fd);font-size:1.4rem;font-weight:800;color:var(--vp-green-deep)">tú</div>
+          <div class="muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">${tied>1?'empatado con '+(tied-1):'tu posición'}</div>
+        </div>
+        <div style="text-align:center;padding:.5rem;background:var(--vp-bg-soft);border-radius:8px">
+          <div style="font-family:var(--fd);font-size:1.4rem;font-weight:800;color:var(--vp-navy)">${behindCount}</div>
+          <div class="muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">van detrás</div>
+        </div>
+      </div>
+      <p class="muted" style="font-size:.78rem;margin:.85rem 0 0">Cómo se mide: 20 pts por inscripción completa · 18 pts por cada semana entregada · 8 pts por no tener bloqueos abiertos. Promedio actual del grupo: <strong>${avgProg.toFixed(0)}%</strong>.</p>
+    </div>
+
+    <!-- PRÓXIMO RETO grande (1 acción concreta) -->
+    ${(function(){
+      const nm = nextMission(u);
+      if(!nm) return `<div class="card" style="background:linear-gradient(135deg,rgba(0,206,124,.12),rgba(0,206,124,.04));border-color:var(--vp-green)"><h3>🎉 Cumpliste todos los retos del programa</h3><p style="margin:0">Ya entregaste todo. Ahora a defender la entrega final. ¡Crack!</p></div>`;
+      return `<div class="card" style="background:linear-gradient(135deg,#001F60,#003396);color:#fff;border:none">
+        <div style="font-family:var(--fd);font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:#00CE7C;margin-bottom:.3rem">🎯 Tu próximo reto</div>
+        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+          <div style="font-size:2.5rem">${nm.icon}</div>
+          <div style="flex:1;min-width:200px"><h3 style="margin:0;color:#fff">${escapeHTML(nm.title)}</h3><p style="margin:.2rem 0 0;color:rgba(255,255,255,.7);font-size:.9rem">Termínalo y desbloqueas el siguiente.</p></div>
+          <button class="btn btn--primary btn--sm" onclick="goto('${nm.page}')">${escapeHTML(nm.cta)} →</button>
+        </div>
+      </div>`;
+    })()}
+
+    <!-- LISTA DE MISIONES (los retos) -->
+    <div class="card">
+      <h3>Mis retos · ${missionsFor(u).filter(m=>m.done).length} de ${missionsFor(u).length} cumplidos</h3>
+      <p class="muted" style="margin:0 0 .75rem">Cada reto cumplido suma a tu progreso y te acerca al Top 10.</p>
+      ${missionsFor(u).map(m=>`<div style="display:flex;align-items:center;gap:.75rem;padding:.6rem 0;border-bottom:1px dashed var(--vp-line)">
+        <div style="font-size:1.5rem;flex-shrink:0">${m.done?'✅':m.icon}</div>
+        <div style="flex:1">
+          <strong style="${m.done?'text-decoration:line-through;color:var(--vp-text-soft)':''}">${escapeHTML(m.title)}</strong>
+        </div>
+        ${m.done?'<span class="badge badge--green">Cumplido</span>':`<button class="btn btn--ghost btn--sm" onclick="goto('${m.page}')">${escapeHTML(m.cta)} →</button>`}
+      </div>`).join('')}
+    </div>
+
+    <!-- BADGES -->
+    <div class="card">
+      <h3>Insignias · ${unlockedCount(u)} de ${badgesFor(u).length} desbloqueadas</h3>
+      <p class="muted" style="margin:0 0 .75rem">Coleccionables. Cada acción del reto desbloquea una.</p>
+      <div class="badges-wrap">
+        ${badgesFor(u).slice().sort((a,b)=>(b.on?1:0)-(a.on?1:0)).map(b=>`<div class="badge-tile ${b.on?'unlocked':'locked'}" title="${escapeAttr(b.desc)}"><div class="icon">${b.icon}</div><div class="name">${escapeHTML(b.name)}</div><div class="desc">${escapeHTML(b.desc)}</div></div>`).join('')}
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+        <div>
+          <h3 style="margin-bottom:.1rem">Estado de inscripción</h3>
+          <p class="muted" style="margin:0">${enrollmentDone(u)?'Todo listo. Estás 100% inscrito ✓':'Te falta completar pasos para terminar tu inscripción.'}</p>
+        </div>
+        <span class="badge ${enrollmentDone(u)?'badge--green':'badge--amber'}">${enrollPct}% completo</span>
+      </div>
+      <div class="enroll-grid">
+        ${enrollmentChecklist(u).map(s=>`<div class="enroll-step ${s.done?'done':''}"><span class="dot">${s.done?'✓':' '}</span>${escapeHTML(s.label)}</div>`).join("")}
+      </div>
+      <div style="margin-top:.85rem;display:flex;gap:.5rem;flex-wrap:wrap"><button class="btn btn--primary btn--sm" onclick="goto('carta')">Ir a carta y términos</button></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+        <div>
+          <h3 style="margin-bottom:.1rem">Ritmo del reto</h3>
+          <p class="muted" style="margin:0">${cp.started?`Semana esperada: <strong>${cp.expectedWeek}</strong> · Vas en <strong>${pace.have}</strong> de 4`:`Arranca el ${fmtChallengeDate(cp.start)}.`}</p>
+        </div>
+        <span class="badge ${pace.cls}">${pace.label}</span>
+      </div>
+      <div class="timebar"><div class="fill" style="width:${cp.pctTime}%"></div><div class="marks"><span></span><span></span><span></span><span></span></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:.75rem;color:var(--vp-text-soft);font-family:var(--fd);text-transform:uppercase;letter-spacing:.06em">
+        <span>Sem 1</span><span>Sem 2</span><span>Sem 3</span><span>Sem 4</span>
+      </div>
+    </div>
+
+    <div class="grid g3">
+      <div class="kpi"><p class="label">Estado</p><div class="value" style="font-size:1.1rem;padding-top:.3rem"><span class="badge ${u.status==='aprobado'?'badge--green':u.status==='rechazado'?'badge--red':'badge--amber'}">${u.status.toUpperCase()}</span></div></div>
+      <div class="kpi"><p class="label">Semanas con avance</p><div class="value">${weeksDone}<span style="font-size:1rem;color:var(--vp-text-soft)"> / 4</span></div></div>
+      <div class="kpi"><p class="label">Puntaje actual</p><div class="value">${score.total.toFixed(1)}<span style="font-size:1rem;color:var(--vp-text-soft)"> / 100</span></div></div>
+    </div>
+
+    <div class="card" style="margin-top:1rem">
+      <h3>Tu problema asignado</h3>
+      <p>${escapeHTML(u.assignedProblem||"Sin asignar todavía.")}</p>
+      <div style="margin-top:.75rem"><button class="btn btn--ghost btn--sm" onclick="goto('problema')">Ver mi problema completo →</button></div>
+    </div>
+    <div class="card">
+      <h3>Próximos pasos</h3>
+      <ol style="margin:0;padding-left:1.1rem;color:var(--vp-text-2)">
+        <li>Descarga la <a onclick="goto('carta')" style="cursor:pointer;color:var(--vp-green-deep)">carta de compromiso</a>, fírmala y súbela.</li>
+        <li>Acepta los <strong>términos del programa</strong> desde la misma sección.</li>
+        <li>Revisa los <a onclick="goto('evaluacion')" style="cursor:pointer;color:var(--vp-green-deep)">criterios de evaluación</a>.</li>
+        <li>Sube tu primer avance en la <a onclick="goto('avances')" style="cursor:pointer;color:var(--vp-green-deep)">Semana 1</a>.</li>
+        <li>Repasa el <a onclick="goto('recursos')" style="cursor:pointer;color:var(--vp-green-deep)">resumen de recursos del reto</a> (Platzi, cuentas IA, marca).</li>
+      </ol>
+    </div>
+
+    ${renderMyHelpCard(u)}
+  `;
+}
+function fmtChallengeDate(d){return d.toLocaleDateString("es-VE",{day:"2-digit",month:"long",year:"numeric"});}
+
+/* Tarjeta con todo el historial de ayudas del participante */
+function renderMyHelpCard(u){
+  const hist = (u.helpHistory||[]).slice().sort((a,b)=>b.ts-a.ts);
+  if(!hist.length) return `<div class="card"><h3>Mis solicitudes de ayuda</h3><p class="muted" style="margin:0">Todavía no has pedido ayuda. Si te trancas en algo, usa el botón rojo abajo a la derecha — tu gerente y los admins lo verán al instante.</p></div>`;
+  return `<div class="card">
+    <h3>Mis solicitudes de ayuda (${hist.length})</h3>
+    <p class="muted" style="margin:0 0 .75rem">Acá te queda el registro de cada bloqueo y cómo se resolvió. Sirve como referencia.</p>
+    ${hist.map(h=>{
+      const isActive = h.status==='active';
+      return `<div style="padding:.7rem .85rem;background:${isActive?'rgba(220,38,38,.06)':'var(--vp-bg-soft)'};border-left:3px solid ${isActive?'var(--vp-red)':'var(--vp-green)'};border-radius:6px;margin-bottom:.6rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;flex-wrap:wrap">
+          <span class="badge ${isActive?'badge--red':'badge--green'}">${isActive?'Activa':'Resuelta'}</span>
+          <span class="muted" style="font-size:.75rem">Pedida ${fmtDate(h.ts)}</span>
+        </div>
+        <div style="margin-top:.5rem"><strong>Lo que pediste:</strong><div style="color:var(--vp-text-2);margin-top:.2rem">"${escapeHTML(h.text)}"</div></div>
+        ${!isActive?`<div style="margin-top:.6rem;padding-top:.6rem;border-top:1px dashed var(--vp-line)"><strong>Cómo se resolvió:</strong><div style="color:var(--vp-text-2);margin-top:.2rem;white-space:pre-wrap">${escapeHTML(h.resolution||'(sin nota — pídeles a Catherine o Isabella el detalle)')}</div><div class="muted" style="font-size:.75rem;margin-top:.3rem">Resuelta por ${escapeHTML(h.resolvedBy||'—')} el ${fmtDate(h.resolvedAt)}</div></div>`:`<div style="margin-top:.5rem"><button class="btn btn--ghost btn--sm" onclick="openHelpModal()">Editar o cerrar</button></div>`}
+      </div>`;
+    }).join("")}
+  </div>`;
+}
+
+function renderProblema(main){
+  const u = DB.users[SESSION.email];
+  main.innerHTML = `
+    <h1 class="page-title">Mi problema</h1>
+    <p class="page-sub">Esto es lo que se aprobó para que resuelvas con IA.</p>
+    <div class="card">
+      <h3>Problema aprobado</h3>
+      <p style="font-size:1rem;color:var(--vp-text-2);white-space:pre-wrap">${escapeHTML(u.assignedProblem||"Sin asignar.")}</p>
+      <h4 style="margin-top:1.25rem">Notas del comité</h4>
+      <p style="white-space:pre-wrap">${escapeHTML(u.approvedNote||"—")}</p>
+    </div>
+    <div class="card">
+      <h3>Problemas que enviaste</h3>
+      ${(u.problemas||[]).map((p,i)=>`
+        <div style="padding:.6rem 0;border-bottom:1px dashed var(--vp-line)">
+          <div style="font-family:var(--fd);font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:var(--vp-text-soft);margin-bottom:.2rem">Problema ${i+1}</div>
+          <div style="white-space:pre-wrap">${escapeHTML(p)}</div>
+        </div>`).join("") || "<p class='muted'>No registraste problemas en la inscripción.</p>"}
+    </div>
+  `;
+}
+
+function renderAvances(main){
+  const u = DB.users[SESSION.email];
+  main.innerHTML = `
+    <h1 class="page-title">Avances semanales</h1>
+    <p class="page-sub">Sube cada semana lo que vayas haciendo: documentos, capturas, prototipos, videos. Tu gerente y los admins lo verán en línea.</p>
+    ${SEMANAS.map(s=>{
+      const p = u.progress[s.n] || {text:"",files:[]};
+      return `<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+          <div>
+            <h3 style="margin-bottom:.1rem">${s.titulo}</h3>
+            <p class="muted">${s.descripcion}</p>
+          </div>
+          ${p.text||p.files.length?'<span class="badge badge--green">Con avance</span>':'<span class="badge badge--gray">Pendiente</span>'}
+        </div>
+        <div class="field" style="margin-top:.85rem">
+          <label>Resumen de avance</label>
+          <textarea id="prog-${s.n}" placeholder="¿Qué hiciste, qué aprendiste, qué viene la próxima semana?">${escapeHTML(p.text||"")}</textarea>
+        </div>
+        <div class="field">
+          <label>Archivos (PDF, imágenes, capturas, video)</label>
+          <label class="upload-btn">+ Adjuntar archivos<input type="file" multiple onchange="uploadProgress(${s.n}, this.files)"/></label>
+        </div>
+        ${p.files.length?'<div>'+p.files.map((f,i)=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · ${fmtDate(f.ts)}</div></div><div style="display:flex;gap:.4rem"><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${f.data}">Descargar</a><button class="btn btn--ghost btn--sm" onclick="removeProgressFile(${s.n},${i})">Quitar</button></div></div>`).join("")+'</div>':""}
+        <div style="margin-top:.75rem;display:flex;gap:.5rem"><button class="btn btn--primary btn--sm" onclick="saveProgress(${s.n})">Guardar avance</button></div>
+      </div>`;
+    }).join("")}
+  `;
+}
+function saveProgress(n){
+  const u = DB.users[SESSION.email];
+  const wasEmpty = !u.progress[n].text;
+  u.progress[n].text = document.getElementById("prog-"+n).value;
+  saveDB();
+  toast("Avance Semana "+n+" guardado");
+  if(wasEmpty && u.progress[n].text){
+    confetti();
+    const btn = document.activeElement?.getBoundingClientRect();
+    if(btn) xpPop(btn.left+btn.width/2, btn.top, "+10 XP");
+  }
+}
+function uploadProgress(n, files){
+  const u = DB.users[SESSION.email];
+  const wasEmptyWeek = !u.progress[n].files.length && !u.progress[n].text;
+  let pending = files.length;
+  [...files].forEach(f=>{
+    const r = new FileReader();
+    r.onload = e=>{
+      u.progress[n].files.push({name:f.name,size:f.size,data:e.target.result,ts:Date.now()});
+      pending--;
+      if(pending===0){
+        saveDB();
+        if(wasEmptyWeek) confetti();
+        toast("Subiste "+files.length+" archivo"+(files.length>1?'s':'')+" a Semana "+n);
+        goto("avances");
+      }
+    };
+    r.readAsDataURL(f);
+  });
+}
+function removeProgressFile(n,i){
+  if(!confirm("¿Quitar este archivo?")) return;
+  DB.users[SESSION.email].progress[n].files.splice(i,1);
+  saveDB();goto("avances");
+}
+
+function renderEvaluacion(main){
+  const u = DB.users[SESSION.email];
+  main.innerHTML = `
+    <h1 class="page-title">Items de evaluación</h1>
+    <p class="page-sub">Estos son los criterios con los que se calificará tu proyecto. Tu puntaje actual ya considera el feedback de los admins y gerentes.</p>
+    <div class="card">
+      <h3>Criterios (peso sobre 100)</h3>
+      ${DB.criteria.map(c=>{
+        const sc = u.scores[c.id]||0;
+        return `<div class="criteria-row">
+          <div><strong>${escapeHTML(c.name)}</strong><div class="muted">${escapeHTML(c.desc)}</div></div>
+          <div><span class="badge badge--navy">Peso ${c.weight}%</span></div>
+          <div style="text-align:right"><strong style="font-family:var(--fd);font-size:1.1rem">${sc.toFixed(1)}</strong><span class="muted"> / 10</span></div>
+        </div>`;
+      }).join("")}
+      <div style="margin-top:1rem;padding-top:.75rem;border-top:2px solid var(--vp-line);display:flex;justify-content:space-between;align-items:center">
+        <strong style="font-family:var(--fd);font-size:1.1rem;letter-spacing:.04em;text-transform:uppercase">Puntaje total</strong>
+        <strong style="font-family:var(--fd);font-size:1.5rem;color:var(--vp-green-deep)">${sumScore(u).total.toFixed(1)} / 100</strong>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Comentarios del equipo</h3>
+      ${renderFeedbackThread(u)}
+    </div>
+  `;
+}
+function renderFeedbackThread(u){
+  if(!u.feedback.length) return '<p class="muted">Aún no hay comentarios. Suelen llegar después de cada entrega semanal.</p>';
+  return '<div class="feedback-thread">'+u.feedback.slice().reverse().map(f=>`
+    <div class="feedback-item">
+      <div><span class="who">${escapeHTML(f.from)}</span><span class="when">${escapeHTML(f.role)} · ${fmtDate(f.ts)}</span></div>
+      <div style="margin-top:.3rem;white-space:pre-wrap">${escapeHTML(f.text)}</div>
+    </div>`).join("")+'</div>';
+}
+
+function renderMarca(main){
+  markVisit('marca');
+  main.innerHTML = `
+    <h1 class="page-title">Manual de marca</h1>
+    <p class="page-sub">Usa estos colores, tipografías y logos en todo lo que entregues. El look & feel también pesa en la evaluación final.</p>
+    <div class="card">
+      <h3>Colores corporativos</h3>
+      <div class="grid g3">
+        <div class="swatch"><div class="color" style="background:#00CE7C"></div><div class="info"><strong>Verde Vepagos</strong>HEX #00CE7C · RGB 0/206/124</div></div>
+        <div class="swatch"><div class="color" style="background:#00B36C"></div><div class="info"><strong>Verde Vepagos profundo</strong>HEX #00B36C · uso hover/acentos</div></div>
+        <div class="swatch"><div class="color" style="background:#001F60"></div><div class="info"><strong>Azul Navy</strong>HEX #001F60 · textos y fondos oscuros</div></div>
+        <div class="swatch"><div class="color" style="background:#E5E9F2"></div><div class="info"><strong>Azul pálido</strong>HEX #E5E9F2 · fondos suaves</div></div>
+        <div class="swatch"><div class="color" style="background:#F6F8FB"></div><div class="info"><strong>Fondo soft</strong>HEX #F6F8FB · superficies</div></div>
+        <div class="swatch"><div class="color" style="background:#FFFFFF;border:1px solid var(--vp-line)"></div><div class="info"><strong>Blanco</strong>HEX #FFFFFF · base</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Tipografía</h3>
+      <div class="split">
+        <div class="font-sample">
+          <div class="label">Display · Barlow Condensed (sustituto de Bahnschrift)</div>
+          <div class="f-cond">CADA HORA QUE LE QUITAMOS A LO MANUAL ES UNA HORA QUE LE DAMOS AL CLIENTE.</div>
+        </div>
+        <div class="font-sample">
+          <div class="label">Cuerpo · Barlow Regular / Medium</div>
+          <div class="f-body">Las inscripciones se evalúan por impacto, claridad y uso real de IA. Cuenta el problema, no la herramienta.</div>
+        </div>
+      </div>
+      <p class="muted" style="margin-top:.75rem">Oficial corporativa: <strong>Bahnschrift</strong>. En digital usamos Barlow / Barlow Condensed como sustituto geométrico cercano.</p>
+    </div>
+    <div class="card">
+      <h3>Logos</h3>
+      <div class="split">
+        <div style="padding:1.5rem;background:var(--vp-navy);border-radius:10px;display:grid;place-items:center"><img src="assets/vepagos-logo-white.png" style="max-height:80px"/></div>
+        <div style="padding:1.5rem;background:#fff;border:1px solid var(--vp-line);border-radius:10px;display:grid;place-items:center"><img src="assets/vepagos-logo.png" style="max-height:80px"/></div>
+      </div>
+      <p class="muted" style="margin-top:.75rem">Sobre fondos oscuros (navy) usa la versión <strong>blanca</strong>. Sobre fondos claros usa la <strong>versión a color</strong>. Respeta área de seguridad mínima = altura del isotipo.</p>
+      <div style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
+        <a class="btn btn--ghost btn--sm" download href="assets/vepagos-logo.png">⬇ Logo completo (color)</a>
+        <a class="btn btn--ghost btn--sm" download href="assets/vepagos-logo-white.png">⬇ Logo blanco PNG</a>
+        <a class="btn btn--ghost btn--sm" download href="assets/vepagos-logo-white-navy.png">⬇ Logo blanco sobre navy</a>
+        <a class="btn btn--ghost btn--sm" download href="assets/vepagos-logo-mark.png">⬇ Isotipo PNG</a>
+        <a class="btn btn--ghost btn--sm" download href="assets/vepagos-logo-mark-white.png">⬇ Isotipo blanco</a>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Tono de voz</h3>
+      <ul style="margin:0;padding-left:1.1rem;color:var(--vp-text-2)">
+        <li><strong>Claro y directo</strong>: nada de "potencializar sinergias". Decimos qué hace y para quién.</li>
+        <li><strong>Cercano</strong>: hablamos de tú a tú con el colaborador y con el cliente.</li>
+        <li><strong>Con datos</strong>: si dice "ahorra tiempo", decimos cuántas horas.</li>
+        <li><strong>Sin promesas vacías</strong>: lo que digamos, lo cumplimos.</li>
+      </ul>
+    </div>
+  `;
+}
+
+function renderPantallas(main){
+  main.innerHTML = `
+    <h1 class="page-title">Pantallas guía · Look & Feel</h1>
+    <p class="page-sub">Usa estas referencias visuales para que tu entregable se sienta Vepagos. Mantén consistencia en bordes, espaciados y colores.</p>
+    <div class="card">
+      <h3>Plantillas de pantallas</h3>
+      <div class="grid g2">
+        <div>
+          <div class="screen-thumb">Pantalla de login Vepagos</div>
+          <p class="muted" style="margin-top:.4rem">Fondo navy degradé, logo en blanco, tarjeta blanca centrada, CTA verde.</p>
+        </div>
+        <div>
+          <div class="screen-thumb alt">Dashboard principal</div>
+          <p class="muted" style="margin-top:.4rem">Sidebar blanco con sección uppercase, topbar navy, tarjetas KPI con borde sutil.</p>
+        </div>
+        <div>
+          <div class="screen-thumb pale">Formulario de carga</div>
+          <p class="muted" style="margin-top:.4rem">Inputs con borde 1.5px, focus verde, etiquetas en Barlow Condensed uppercase.</p>
+        </div>
+        <div>
+          <div class="screen-thumb">Tabla de seguimiento</div>
+          <p class="muted" style="margin-top:.4rem">Encabezados navy uppercase, filas con hover suave, badges para estados.</p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Patrones a respetar</h3>
+      <ul style="margin:0;padding-left:1.1rem;color:var(--vp-text-2)">
+        <li>Botones primarios <strong>verdes</strong> con texto <strong>navy</strong>, esquinas pill.</li>
+        <li>Headers en Barlow Condensed UPPERCASE con letter-spacing leve.</li>
+        <li>Bordes <code>14px</code> en tarjetas, <code>10px</code> en inputs, <code>999px</code> en botones.</li>
+        <li>Sombras muy sutiles, nada dramático.</li>
+        <li>Estados: verde (ok), ámbar (pendiente), rojo (alerta), navy (info).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Referencias en este portal</h3>
+      <p>Este mismo portal sigue todo el manual de marca. Inspírate en él: topbar navy, sidebar con secciones en Condensed, tarjetas blancas, badges de estado, botones pill verdes.</p>
+    </div>
+  `;
+}
+
+function renderCarta(main){
+  const u = DB.users[SESSION.email];
+  const has = u.commitmentSigned;
+  main.innerHTML = `
+    <h1 class="page-title">Carta de compromiso</h1>
+    <p class="page-sub">Descarga, firma (digital o física + foto/escaneo) y vuelve a subirla. Es requisito para participar.</p>
+    <div class="card">
+      <h3>1. Descarga tu carta personalizada</h3>
+      <p>La carta ya viene con tus datos y la cláusula de propiedad intelectual. Es obligatorio entregarla firmada antes de finalizar la Semana 1.</p>
+      <button class="btn btn--primary" onclick="downloadCommitmentLetter()">⬇ Descargar carta de compromiso</button>
+    </div>
+    <div class="card">
+      <h3>2. Sube la carta firmada</h3>
+      ${has?`<div class="uploaded"><div><strong>${escapeHTML(has.filename)}</strong><div class="meta">Subida ${fmtDate(has.ts)}</div></div><div style="display:flex;gap:.4rem"><a class="btn btn--ghost btn--sm" download="${escapeAttr(has.filename)}" href="${has.data}">Descargar</a><button class="btn btn--danger btn--sm" onclick="removeCommitment()">Reemplazar</button></div></div>`:`<label class="upload-btn">+ Subir carta firmada (PDF / imagen)<input type="file" accept=".pdf,image/*" onchange="uploadCommitment(this.files)"/></label>`}
+    </div>
+
+    <div class="card">
+      <h3>3. Acepta los términos del programa</h3>
+      <p style="color:var(--vp-text-2)">Al marcar esta casilla, confirmo que <strong>leí y acepto</strong> íntegramente las cláusulas de propiedad intelectual, confidencialidad, asistencia, cláusula de descuento Platzi, cumplimiento normativo y uso de imagen descritas a continuación. Sin esta aceptación tu inscripción no queda completa.</p>
+      <label style="display:flex;align-items:flex-start;gap:.6rem;padding:.75rem;background:${u.termsAccepted?'rgba(0,206,124,.1)':'var(--vp-bg-soft)'};border-radius:10px;border:1.5px solid ${u.termsAccepted?'var(--vp-green)':'var(--vp-line)'};cursor:pointer">
+        <input type="checkbox" id="terms-chk" ${u.termsAccepted?'checked':''} onchange="toggleTerms(this.checked)" style="margin-top:.2rem;width:18px;height:18px;accent-color:#00CE7C"/>
+        <span><strong>${u.termsAccepted?'✓ Aceptado':'Acepto los términos del Reto IA Vepagos'}</strong>${u.termsAccepted?`<div class="muted" style="margin-top:.2rem">Aceptado ${fmtDate(u.termsAcceptedAt)}</div>`:''}</span>
+      </label>
+    </div>
+    <div class="card">
+      <h3>Cláusulas clave</h3>
+      <details open><summary>Propiedad intelectual</summary>
+        <p style="color:var(--vp-text-2)">Toda solución, prototipo, código, prompt, dataset, documento, diseño o desarrollo creado durante el Reto IA Vepagos —ya sea en horario laboral o fuera de él— es <strong>propiedad exclusiva de Vepagos C.A.</strong>. El participante cede irrevocablemente a Vepagos cualquier derecho patrimonial, presente o futuro, sobre dichos desarrollos.</p>
+      </details>
+      <details><summary>Confidencialidad</summary>
+        <p style="color:var(--vp-text-2)">El participante se compromete a no compartir información interna, datos de clientes, métricas comerciales ni capturas del proyecto fuera del programa, salvo autorización escrita de Vepagos.</p>
+      </details>
+      <details><summary>Asistencia y cumplimiento</summary>
+        <p style="color:var(--vp-text-2)">Es obligatorio entregar avances semanales y participar en las sesiones convocadas. La inasistencia injustificada a 2 entregas o sesiones inhabilita al participante del concurso y de los premios.</p>
+      </details>
+      <details><summary>Cláusula de descuento</summary>
+        <p style="color:var(--vp-text-2)">En caso de inscripción a Platzi Expert como premio: si el participante abandona Vepagos antes de cumplir 12 meses desde la entrega del beneficio, autoriza el descuento del valor proporcional de la suscripción de su liquidación.</p>
+      </details>
+      <details><summary>Uso de imagen y publicación</summary>
+        <p style="color:var(--vp-text-2)">Vepagos podrá usar fotos, videos y testimonios del Reto IA en comunicaciones internas, redes sociales y prensa, sin compensación adicional.</p>
+      </details>
+    </div>
+  `;
+}
+function uploadCommitment(files){
+  if(!files[0]) return;
+  const f = files[0];
+  const r = new FileReader();
+  r.onload = e=>{
+    DB.users[SESSION.email].commitmentSigned = {filename:f.name,data:e.target.result,ts:Date.now()};
+    saveDB();confetti();toast("Carta firmada subida ✓");goto("carta");
+  };
+  r.readAsDataURL(f);
+}
+function removeCommitment(){
+  if(!confirm("¿Reemplazar la carta? Tendrás que volver a subirla.")) return;
+  DB.users[SESSION.email].commitmentSigned=null;saveDB();goto("carta");
+}
+
+/* ----- Carta de compromiso (HTML imprimible) ----- */
+function downloadCommitmentLetter(){
+  const u = DB.users[SESSION.email];
+  u.commitmentDownloaded = true; saveDB();
+  const fecha = new Date().toLocaleDateString("es-VE",{day:"2-digit",month:"long",year:"numeric"});
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Carta de Compromiso · ${escapeHTML(u.name)}</title>
+  <style>
+    @page{size:Letter;margin:1.8cm}
+    body{font-family:'Barlow','Helvetica',sans-serif;color:#001F60;line-height:1.55;font-size:11pt;margin:0}
+    h1{font-family:'Barlow Condensed','Bahnschrift',sans-serif;font-size:22pt;letter-spacing:.02em;margin:0 0 .25rem;text-transform:uppercase}
+    h2{font-family:'Barlow Condensed',sans-serif;font-size:13pt;letter-spacing:.04em;text-transform:uppercase;color:#00B36C;margin:1.5rem 0 .4rem}
+    .hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #00CE7C;padding-bottom:.75rem;margin-bottom:1.5rem}
+    .meta{font-size:9.5pt;color:#5A6685}
+    p{margin:.5rem 0}
+    ol{padding-left:1.2rem}
+    .firma{margin-top:3rem;display:grid;grid-template-columns:1fr 1fr;gap:2rem}
+    .firma .line{border-top:1px solid #001F60;margin-top:3rem;padding-top:.4rem;font-size:9.5pt}
+    .badge{display:inline-block;background:#00CE7C;color:#001F60;padding:.15rem .55rem;border-radius:999px;font-family:'Barlow Condensed',sans-serif;font-size:8.5pt;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+    @media print{.noprint{display:none}}
+  </style></head><body>
+    <div class="hdr">
+      <div>
+        <span class="badge">Reto IA Vepagos · 2026</span>
+        <h1>Carta de Compromiso</h1>
+        <div class="meta">Caracas, ${fecha}</div>
+      </div>
+      <div style="text-align:right;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:#001F60">VEPAGOS C.A.</div>
+    </div>
+    <p>Yo, <strong>${escapeHTML(u.name)}</strong>, con cargo de <strong>${escapeHTML(u.cargo)}</strong> en el área de <strong>${escapeHTML(u.area)}</strong>, correo <strong>${escapeHTML(u.email)}</strong>, declaro de manera libre y voluntaria mi participación en el <strong>Reto IA Vepagos 2026</strong>, aceptando íntegramente los siguientes términos:</p>
+
+    <h2>1. Propiedad intelectual</h2>
+    <p>Toda solución, prototipo, código fuente, prompts, datasets, documentos, diseños, automatizaciones y cualquier desarrollo —tangible o intangible— creado por mí en el marco del Reto IA Vepagos, ya sea en horario laboral o fuera de él, es <strong>propiedad exclusiva e irrevocable de Vepagos C.A.</strong>. Cedo y transfiero a Vepagos, de forma plena, definitiva y sin limitación territorial ni temporal, la totalidad de los derechos patrimoniales (presentes y futuros) sobre dichos desarrollos, conservando únicamente los derechos morales que la ley reconoce como irrenunciables.</p>
+
+    <h2>2. Confidencialidad</h2>
+    <p>Me comprometo a no divulgar, compartir, reproducir ni utilizar fuera del Reto IA Vepagos ningún tipo de información interna, datos de clientes, estrategias comerciales, métricas, capturas de sistemas o cualquier contenido al que tenga acceso por motivo del reto, salvo autorización escrita de Vepagos.</p>
+
+    <h2>3. Asistencia y entregas</h2>
+    <p>Me comprometo a entregar avances semanales en el portal del reto, asistir a las sesiones formativas y de seguimiento convocadas, y cumplir con los hitos publicados. Reconozco que la inasistencia injustificada a 2 o más entregas o sesiones me inhabilita del concurso y de cualquier premio asociado.</p>
+
+    <h2>4. Cláusula de descuento (Platzi Expert / premios formativos)</h2>
+    <p>En caso de resultar beneficiario de la suscripción a Platzi Expert u otro programa formativo costeado por Vepagos como parte del reto, autorizo expresamente que, si abandono Vepagos voluntariamente o por causa imputable a mí antes de cumplir <strong>12 meses</strong> contados desde la entrega del beneficio, sea descontado de mi liquidación el valor proporcional pendiente de dicha suscripción, hasta un máximo aproximado de US$ 250 según la tarifa vigente del producto.</p>
+
+    <h2>5. Cumplimiento normativo</h2>
+    <p>Reconozco y aceptó cumplir la normativa interna de Vepagos durante todo el reto, incluyendo políticas de protección de datos, seguridad de la información, ética y uso aceptable de herramientas de IA. Cualquier incumplimiento puede derivar en mi exclusión inmediata del programa.</p>
+
+    <h2>6. Uso de imagen</h2>
+    <p>Autorizo a Vepagos a utilizar mi nombre, imagen, testimonio y materiales producidos durante el reto en comunicaciones internas, redes sociales, prensa y materiales de marca, sin compensación económica adicional.</p>
+
+    <h2>7. Aceptación</h2>
+    <p>Declaro haber leído, entendido y aceptado todos los términos expuestos, y firmo en señal de conformidad.</p>
+
+    <div class="firma">
+      <div>
+        <div class="line">Firma del participante</div>
+        <div style="margin-top:.4rem">${escapeHTML(u.name)}<br/>Cédula: ____________________</div>
+      </div>
+      <div>
+        <div class="line">Por Vepagos C.A.</div>
+        <div style="margin-top:.4rem">Catherine Morales<br/>Gerente Ejecutivo de Sistemas</div>
+      </div>
+    </div>
+    <p class="noprint" style="margin-top:2rem;text-align:center;color:#5A6685;font-size:9pt">Imprime esta página (Ctrl/Cmd + P → Guardar como PDF), fírmala y vuelve a subirla en el portal.</p>
+    <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),400));<\/script>
+  </body></html>`;
+  const blob = new Blob([html],{type:"text/html"});
+  const url = URL.createObjectURL(blob);
+  window.open(url,"_blank");
+}
+
+/* ---------- Recursos (vista compartida) ---------- */
+function renderRecursos(main){
+  markVisit('recursos');
+  const cfg = DB.config;
+  main.innerHTML = `
+    <h1 class="page-title">Recursos del reto</h1>
+    <p class="page-sub">Todo lo que necesitas en un solo lugar: cómo entrar, qué cuentas abrir, planes Platzi, marca y calendario.</p>
+    ${SESSION.activeRole==='admin'?'<p class="muted">Para editar estos recursos, ve a <button class="btn btn--ghost btn--sm" onclick="goto(\'a-recursos\')">Editar recursos</button>.</p>':''}
+
+    <div class="card" style="background:linear-gradient(135deg,rgba(0,206,124,.08),rgba(0,31,96,.04))">
+      <h3>📘 Dos planes Platzi para este reto</h3>
+      <div class="split">
+        <div style="padding:1rem;background:#fff;border:1.5px solid var(--vp-green);border-radius:10px">
+          <span class="badge badge--green">Para todos los inscritos</span>
+          <h4 style="margin:.4rem 0 .2rem;font-size:1rem">Mensual · ${cfg.platziMonthlyUSD} USD</h4>
+          <p style="margin:0;color:var(--vp-text-2);font-size:.9rem">Durante el mes del reto, Vepagos cubre la suscripción Platzi mensual para todos los participantes. Aprovecha la Escuela de IA y los cursos de Platzi durante el reto.</p>
+        </div>
+        <div style="padding:1rem;background:#fff;border:1.5px solid var(--vp-navy);border-radius:10px">
+          <span class="badge badge--navy">Top 10–15 al cerrar</span>
+          <h4 style="margin:.4rem 0 .2rem;font-size:1rem">Anual · ${cfg.platziYearlyUSD} USD/año</h4>
+          <p style="margin:0;color:var(--vp-text-2);font-size:.9rem">Al cerrar el reto, el comité selecciona a las <strong>10 a 15 personas</strong> que mejor aprovecharon la plataforma y entregaron resultados. Reciben Platzi Expert por <strong>1 año completo</strong>.</p>
+        </div>
+      </div>
+    </div>
+
+    ${DB.resources.map(r=>`
+      <div class="card">
+        <h3>${escapeHTML(r.titulo)}</h3>
+        <p style="white-space:pre-wrap;color:var(--vp-text-2);margin:0">${escapeHTML(r.cuerpo)}</p>
+        ${r.link?`<div style="margin-top:.75rem"><a class="btn btn--primary btn--sm" href="${escapeAttr(r.link)}" target="_blank" rel="noopener">Abrir enlace ↗</a></div>`:""}
+      </div>
+    `).join("")}
+  `;
+}
+
+function renderCuenta(main, isFirst){
+  const u = DB.users[SESSION.email];
+  main.innerHTML = `
+    <h1 class="page-title">Mi cuenta</h1>
+    <p class="page-sub">${isFirst?'Antes de continuar, cambia la contraseña por una tuya.':'Cambia tu contraseña cuando quieras.'}</p>
+    <div class="card" style="max-width:520px">
+      <h3>Tus datos</h3>
+      <p><strong>${escapeHTML(u.name)}</strong></p>
+      <p class="muted">${escapeHTML(u.email)} · ${escapeHTML(u.cargo)} · ${escapeHTML(u.area)}</p>
+    </div>
+    <div class="card" style="max-width:520px">
+      <h3>Cambiar contraseña</h3>
+      <div id="cuenta-msg"></div>
+      <div class="field"><label>Contraseña actual</label><input type="password" id="pw-old" autocomplete="current-password"/></div>
+      <div class="field"><label>Nueva contraseña (mín. 6 caracteres)</label><input type="password" id="pw-new" autocomplete="new-password"/></div>
+      <div class="field"><label>Confirmar nueva</label><input type="password" id="pw-new2" autocomplete="new-password"/></div>
+      <button class="btn btn--primary" onclick="changePass()">Actualizar contraseña</button>
+    </div>
+  `;
+}
+function changePass(){
+  const u = DB.users[SESSION.email];
+  const old = document.getElementById("pw-old").value;
+  const nw = document.getElementById("pw-new").value;
+  const nw2 = document.getElementById("pw-new2").value;
+  const msg = document.getElementById("cuenta-msg");
+  msg.innerHTML="";
+  if(u.pass!==old){msg.innerHTML='<div class="err">La contraseña actual no coincide.</div>';return;}
+  if(nw.length<6){msg.innerHTML='<div class="err">Mínimo 6 caracteres.</div>';return;}
+  if(nw!==nw2){msg.innerHTML='<div class="err">Las contraseñas nuevas no coinciden.</div>';return;}
+  u.pass=nw;u.passChanged=true;saveDB();
+  alert('✓ Contraseña actualizada con éxito.\n\nPor seguridad te vamos a sacar de la sesión. Vuelve a entrar con tu nueva clave.');
+  logout();
+}
+
+/* ---------- 6. GERENTE ---------- */
+function teamFor(managerEmail){
+  managerEmail = managerEmail.toLowerCase();
+  return Object.values(DB.users).filter(u=>u.manager===managerEmail && u.email!==managerEmail && isRealParticipant(u));
+}
+function renderManagerEquipo(main){
+  const team = teamFor(SESSION.email);
+  const own = DB.users[SESSION.email];
+  main.innerHTML = `
+    <h1 class="page-title">Mi equipo en el reto</h1>
+    <p class="page-sub">Aquí ves a las personas de tu equipo inscritas y tu propio proyecto. Haz clic en cada uno para revisar avances y dejar feedback.</p>
+    <div class="grid g3">
+      <div class="kpi"><p class="label">En mi equipo</p><div class="value">${team.length}</div></div>
+      <div class="kpi"><p class="label">Con avance semana actual</p><div class="value">${team.filter(u=>Object.values(u.progress).some(p=>p.text||p.files.length)).length}</div></div>
+      <div class="kpi"><p class="label">Carta firmada</p><div class="value">${team.filter(u=>u.commitmentSigned).length}/${team.length}</div></div>
+    </div>
+    ${isRealParticipant(own)?`<div class="card" style="margin-top:1rem">
+      <h3>Mi propio proyecto</h3>
+      ${rowFor(own,true)}
+    </div>`:""}
+    <div class="card">
+      <h3>Equipo a mi cargo</h3>
+      ${team.length?`<table><thead><tr><th>Participante</th><th>Estado</th><th>Ritmo</th><th>Avances</th><th>Carta</th><th>Términos</th><th>Puntaje</th><th></th></tr></thead><tbody>
+        ${team.map(u=>{
+          const weeks = Object.values(u.progress).filter(p=>p.text||p.files.length).length;
+          const sc = sumScore(u).total;
+          const pace = paceFor(u);
+          return `<tr class="${hasActiveHelp(u)?'help-active':''}">
+            <td><strong>${escapeHTML(u.name)}</strong>${hasActiveHelp(u)?' <span class="badge badge--red">AYUDA</span>':''}<div class="muted">${escapeHTML(u.cargo)} · ${escapeHTML(u.area)}</div></td>
+            <td><span class="badge ${u.status==='aprobado'?'badge--green':u.status==='rechazado'?'badge--red':'badge--amber'}">${u.status}</span></td>
+            <td><span class="badge ${pace.cls}">${pace.label}</span></td>
+            <td>${weeks}/4</td>
+            <td>${u.commitmentSigned?'<span class="badge badge--green">Firmada</span>':'<span class="badge badge--gray">Pendiente</span>'}</td>
+            <td>${u.termsAccepted?'<span class="badge badge--green">Sí</span>':'<span class="badge badge--gray">No</span>'}</td>
+            <td><strong>${sc.toFixed(1)}</strong></td>
+            <td><button class="btn btn--ghost btn--sm" onclick="viewDetail('${u.email}','g-detalle')">Ver →</button></td>
+          </tr>`;
+        }).join("")}
+      </tbody></table>`:'<p class="muted">Por ahora no tienes inscritos a tu cargo en el reto.</p>'}
+    </div>
+  `;
+}
+function rowFor(u, isOwn){
+  const sc = sumScore(u).total;
+  const weeks = Object.values(u.progress).filter(p=>p.text||p.files.length).length;
+  return `<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:.75rem;align-items:center">
+    <div><strong>${escapeHTML(u.name)}</strong><div class="muted">${escapeHTML(u.cargo)}</div></div>
+    <div><span class="badge ${u.status==='aprobado'?'badge--green':u.status==='rechazado'?'badge--red':'badge--amber'}">${u.status}</span></div>
+    <div><span class="muted">Avances</span><br/><strong>${weeks}/4</strong></div>
+    <div><span class="muted">Puntaje</span><br/><strong>${sc.toFixed(1)}/100</strong></div>
+    <div><button class="btn btn--ghost btn--sm" onclick="viewDetail('${u.email}','g-detalle')">Ver →</button></div>
+  </div>`;
+}
+function viewDetail(email,page){
+  CURRENT_DETAIL_EMAIL = email;
+  goto(page);
+}
+function renderManagerDetalle(main){
+  if(!CURRENT_DETAIL_EMAIL){main.innerHTML='<p class="muted">Selecciona un participante desde "Mi equipo".</p>';return;}
+  renderDetalle(main, CURRENT_DETAIL_EMAIL, "manager");
+}
+
+/* ---------- 7. ADMIN ---------- */
+function renderAdminTablero(main){
+  const all = Object.values(DB.users).filter(isRealParticipant);
+  const aprob = all.filter(u=>u.status==="aprobado").length;
+  const rech = all.filter(u=>u.status==="rechazado").length;
+  const pen = all.filter(u=>u.status==="pendiente").length;
+  const cartas = all.filter(u=>u.commitmentSigned).length;
+  const terms = all.filter(u=>u.termsAccepted).length;
+  const inscritosFull = all.filter(enrollmentDone).length;
+  const conAvance = all.filter(u=>Object.values(u.progress).some(p=>p.text||p.files.length)).length;
+  const helpActive = all.filter(hasActiveHelp);
+  const cp = challengeProgress();
+  const avgScore = all.length ? all.reduce((a,u)=>a+sumScore(u).total,0)/all.length : 0;
+  const onTrack = all.filter(u=>paceFor(u).cls==='badge--green').length;
+  const atRisk = all.filter(u=>paceFor(u).cls==='badge--red').length;
+  const healthPct = all.length ? Math.round(((onTrack+inscritosFull/2)/all.length)*100) : 0;
+
+  main.innerHTML = `
+    <h1 class="page-title">Tablero general · Reto IA</h1>
+    <p class="page-sub">Vista para Catherine Morales · Isabella Makowski. Aquí ves a las 37 personas inscritas.</p>
+
+    <div class="card" style="border-left:5px solid var(--vp-navy);background:linear-gradient(90deg,rgba(0,31,96,.04),transparent)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+        <div>
+          <h3 style="margin-bottom:.1rem">Reloj del reto</h3>
+          <p class="muted" style="margin:0">${cp.started?`Semana esperada: <strong>${cp.expectedWeek}</strong> de ${DB.config.weeks} · ${Math.round(cp.elapsed)} días corridos`:`Aún no arranca. Inicio: ${fmtChallengeDate(cp.start)}.`}</p>
+        </div>
+        <button class="btn btn--ghost btn--sm" onclick="goto('a-config')">Ajustar fechas</button>
+      </div>
+      <div class="timebar"><div class="fill" style="width:${cp.pctTime}%"></div><div class="marks"><span></span><span></span><span></span><span></span></div></div>
+    </div>
+
+    ${helpActive.length?`<div class="card" style="border-left:5px solid var(--vp-red);background:rgba(220,38,38,.05)">
+      <h3 style="color:var(--vp-red)">🚨 ${helpActive.length} solicitud${helpActive.length>1?'es':''} de ayuda activa${helpActive.length>1?'s':''}</h3>
+      ${helpActive.map(u=>{const ah=activeHelp(u);return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;padding:.5rem 0;border-bottom:1px dashed var(--vp-line)">
+        <div><strong>${escapeHTML(u.name)}</strong> <span class="muted">· ${escapeHTML(u.area)}</span><div style="margin-top:.2rem;color:var(--vp-text-2)">"${escapeHTML(ah.text)}"</div><div class="muted" style="font-size:.75rem">Pidió ayuda ${fmtDate(ah.ts)}</div></div>
+        <div style="display:flex;gap:.4rem;flex-shrink:0"><button class="btn btn--ghost btn--sm" onclick="viewDetail('${u.email}','a-detalle')">Abrir / resolver</button></div>
+      </div>`}).join("")}
+    </div>`:""}
+
+    <!-- KPIs (más visuales) -->
+    <div class="grid g3" style="margin-top:1rem">
+      <div class="kpi" style="background:linear-gradient(135deg,#001F60,#002a80);color:#fff;border:none">
+        <p class="label" style="color:rgba(255,255,255,.7)">Salud del reto</p>
+        <div class="value" style="color:#00CE7C;font-size:2.4rem">${healthPct}<span style="font-size:1.2rem;color:rgba(255,255,255,.6)">%</span></div>
+      </div>
+      <div class="kpi"><p class="label">A tiempo</p><div class="value" style="color:var(--vp-green-deep)">${onTrack}</div></div>
+      <div class="kpi"><p class="label">Atrasados</p><div class="value" style="color:var(--vp-red)">${atRisk}</div></div>
+      <div class="kpi"><p class="label">Promedio puntaje</p><div class="value">${avgScore.toFixed(1)}<span style="font-size:1rem;color:var(--vp-text-soft)">/100</span></div></div>
+      <div class="kpi"><p class="label">Inscripción 100%</p><div class="value">${inscritosFull}<span style="font-size:1rem;color:var(--vp-text-soft)">/${all.length}</span></div></div>
+      <div class="kpi"><p class="label">Con avance</p><div class="value">${conAvance}<span style="font-size:1rem;color:var(--vp-text-soft)">/${all.length}</span></div></div>
+      <div class="kpi"><p class="label">Cartas firmadas</p><div class="value">${cartas}<span style="font-size:1rem;color:var(--vp-text-soft)">/${all.length}</span></div></div>
+      <div class="kpi"><p class="label">Solicitudes ayuda</p><div class="value" style="color:${helpActive.length?'var(--vp-red)':'var(--vp-text-soft)'}">${helpActive.length}</div></div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="grid g2" style="margin-top:1rem">
+      <div class="chart-card"><h4>Avances entregados por semana</h4><div class="chart-wrap"><canvas id="ch-weeks"></canvas></div></div>
+      <div class="chart-card"><h4>Participación por área</h4><div class="chart-wrap"><canvas id="ch-area"></canvas></div></div>
+    </div>
+    <div class="grid g2" style="margin-top:1rem">
+      <div class="chart-card"><h4>Top 10 por puntaje</h4><div class="chart-wrap"><canvas id="ch-top"></canvas></div></div>
+      <div class="chart-card"><h4>Actividad últimos 14 días</h4><div class="chart-wrap"><canvas id="ch-activity"></canvas></div></div>
+    </div>
+
+    <!-- ACTIVITY FEED -->
+    <div class="grid g2" style="margin-top:1rem">
+      <div class="card">
+        <h3>Actividad reciente</h3>
+        <div id="adm-feed"></div>
+      </div>
+      <div class="card">
+        <h3>Top mover · esta semana</h3>
+        <div id="adm-movers"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
+        <h3 style="margin:0">Los ${all.length} inscritos</h3>
+        <input class="search" id="atb-q" placeholder="Buscar por nombre, área o correo…" oninput="renderTableroTabla()" style="max-width:320px"/>
+      </div>
+      <div id="atb-table"></div>
+    </div>
+  `;
+  renderTableroTabla();
+  // Render charts and feed AFTER DOM is in
+  setTimeout(()=>{renderAdminCharts(all);renderAdminFeed();renderAdminMovers(all);}, 50);
+}
+
+function renderAdminFeed(){
+  const items = buildActivityFeed(20);
+  const box = document.getElementById('adm-feed');
+  if(!box) return;
+  if(!items.length){box.innerHTML='<p class="muted">Sin actividad aún.</p>';return;}
+  box.innerHTML = items.map(it=>`<div class="feed-item">${feedIcon(it.type)}<div class="meta"><strong>${escapeHTML(it.user.name)}</strong> ${escapeHTML(it.text)}<div class="when">${timeAgo(it.ts)}</div></div></div>`).join('');
+}
+function renderAdminMovers(all){
+  const box = document.getElementById('adm-movers');
+  if(!box) return;
+  const sod = new Date(); sod.setDate(sod.getDate()-7);
+  const since = sod.getTime();
+  const scored = all.map(u=>{
+    const recentFiles = Object.values(u.progress||{}).reduce((a,p)=>a+(p.files||[]).filter(f=>f.ts>since).length,0);
+    const recentFb = (u.feedback||[]).filter(f=>f.ts>since).length;
+    return {u, recentFiles, recentFb, total: recentFiles*3 + recentFb*2};
+  }).filter(x=>x.total>0).sort((a,b)=>b.total-a.total).slice(0,8);
+  if(!scored.length){box.innerHTML='<p class="muted">Sin movimientos de los últimos 7 días.</p>';return;}
+  box.innerHTML = scored.map((x,i)=>`<div class="feed-item"><span class="ico ok" style="background:linear-gradient(135deg,#00CE7C,#00B36C);color:var(--vp-navy);font-family:var(--fd);font-weight:800">${i+1}</span><div class="meta"><strong>${escapeHTML(x.u.name)}</strong> · ${x.recentFiles} archivo${x.recentFiles===1?'':'s'} + ${x.recentFb} feedback<div class="when">${escapeHTML(x.u.area)}</div></div></div>`).join('');
+}
+
+function renderAdminCharts(all){
+  if(typeof Chart==='undefined') return;
+  // 1) Avances por semana
+  const weekCounts = [1,2,3,4].map(n=>all.filter(u=>{const p=u.progress[n];return p && (p.text||p.files.length);}).length);
+  drawChart('ch-weeks',{
+    type:'bar',
+    data:{labels:['Sem 1','Sem 2','Sem 3','Sem 4'],datasets:[{label:'Avances',data:weekCounts,backgroundColor:'#00CE7C',borderRadius:8,barThickness:46}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#E1E5EE'}},x:{grid:{display:false}}}}
+  });
+
+  // 2) Por área
+  const counts = {}; all.forEach(u=>counts[u.area]=(counts[u.area]||0)+1);
+  const areas = Object.keys(counts);
+  drawChart('ch-area',{
+    type:'doughnut',
+    data:{labels:areas,datasets:[{data:areas.map(a=>counts[a]),backgroundColor:['#00CE7C','#001F60','#3B82F6','#F59E0B','#DC2626','#7C3AED','#06B6D4','#84CC16']}]},
+    options:{plugins:{legend:{position:'right',labels:{font:{size:11,family:'Barlow'}}}},cutout:'55%'}
+  });
+
+  // 3) Top 10
+  const top = rankedParticipants().slice(0,10);
+  drawChart('ch-top',{
+    type:'bar',
+    data:{labels:top.map(x=>x.u.name.split(' ').slice(0,2).join(' ')),datasets:[{label:'Puntaje',data:top.map(x=>x.sc),backgroundColor:top.map((_,i)=>i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'#00CE7C'),borderRadius:6}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,max:100,grid:{color:'#E1E5EE'}},y:{grid:{display:false}}}}
+  });
+
+  // 4) Actividad últimos 14 días (uploads + helps por día)
+  const days=[]; const upCounts=[]; const helpCounts=[];
+  const today = new Date();
+  for(let i=13;i>=0;i--){
+    const d = new Date(today.getFullYear(),today.getMonth(),today.getDate()-i);
+    const start = d.getTime(); const end = start+86400000;
+    days.push(d.getDate()+'/'+(d.getMonth()+1));
+    let u=0,h=0;
+    all.forEach(usr=>{
+      Object.values(usr.progress||{}).forEach(p=>(p.files||[]).forEach(f=>{if(f.ts>=start && f.ts<end) u++;}));
+      (usr.helpHistory||[]).forEach(hr=>{if(hr.ts>=start && hr.ts<end) h++;});
+    });
+    upCounts.push(u); helpCounts.push(h);
+  }
+  drawChart('ch-activity',{
+    type:'line',
+    data:{labels:days,datasets:[
+      {label:'Archivos subidos',data:upCounts,borderColor:'#00CE7C',backgroundColor:'rgba(0,206,124,.15)',fill:true,tension:.35,borderWidth:2.5,pointRadius:3},
+      {label:'Solicitudes ayuda',data:helpCounts,borderColor:'#DC2626',backgroundColor:'rgba(220,38,38,.1)',fill:true,tension:.35,borderWidth:2,pointRadius:3}
+    ]},
+    options:{plugins:{legend:{position:'bottom',labels:{font:{size:11,family:'Barlow'}}}},scales:{y:{beginAtZero:true,grid:{color:'#E1E5EE'}},x:{grid:{display:false}}}}
+  });
+}
+function drawChart(id, cfg){
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(el._chart) el._chart.destroy();
+  el._chart = new Chart(el, cfg);
+}
+function renderTableroTabla(){
+  const q = (document.getElementById("atb-q")?.value||"").toLowerCase();
+  const rows = Object.values(DB.users).filter(isRealParticipant)
+    .filter(u=>!q || (u.name+" "+u.email+" "+u.area+" "+u.cargo).toLowerCase().includes(q))
+    .sort((a,b)=>sumScore(b).total-sumScore(a).total || a.name.localeCompare(b.name));
+  const html = `<table><thead><tr><th>#</th><th>Participante</th><th>Área</th><th>Gerente</th><th>Estado</th><th>Ritmo</th><th>Inscripción</th><th>Avances</th><th>Puntaje</th><th></th></tr></thead><tbody>
+    ${rows.map((u,i)=>{
+      const weeks = Object.values(u.progress).filter(p=>p.text||p.files.length).length;
+      const sc = sumScore(u).total;
+      const mgr = DB.users[u.manager]; const mgrName = mgr?mgr.name:(u.manager||"—");
+      const pace = paceFor(u);
+      const enr = enrollmentDone(u);
+      return `<tr class="${hasActiveHelp(u)?'help-active':''}">
+        <td>${i+1}${hasActiveHelp(u)?' 🚨':''}</td>
+        <td><strong>${escapeHTML(u.name)}</strong><div class="muted">${escapeHTML(u.cargo)}</div></td>
+        <td>${escapeHTML(u.area)}</td>
+        <td>${escapeHTML(mgrName)}</td>
+        <td><span class="badge ${u.status==='aprobado'?'badge--green':u.status==='rechazado'?'badge--red':'badge--amber'}">${u.status}</span></td>
+        <td><span class="badge ${pace.cls}">${pace.label}</span></td>
+        <td>${enr?'<span class="badge badge--green">Lista</span>':'<span class="badge badge--amber">'+enrollmentPct(u)+'%</span>'}</td>
+        <td>${weeks}/4</td>
+        <td><strong>${sc.toFixed(1)}</strong></td>
+        <td><button class="btn btn--ghost btn--sm" onclick="viewDetail('${u.email}','a-detalle')">Abrir</button></td>
+      </tr>`;
+    }).join("")}
+  </tbody></table>`;
+  document.getElementById("atb-table").innerHTML = html;
+}
+function distribucionArea(){
+  const counts = {};
+  Object.values(DB.users).filter(isRealParticipant).forEach(u=>{counts[u.area]=(counts[u.area]||0)+1;});
+  const max = Math.max(...Object.values(counts));
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([a,n])=>`
+    <div style="display:grid;grid-template-columns:140px 1fr 40px;align-items:center;gap:.75rem;padding:.4rem 0">
+      <div style="font-family:var(--fd);text-transform:uppercase;font-size:.82rem;letter-spacing:.04em">${escapeHTML(a)}</div>
+      <div style="height:10px;background:var(--vp-bg-soft);border-radius:999px;overflow:hidden"><div style="height:100%;width:${(n/max)*100}%;background:var(--vp-green)"></div></div>
+      <div style="text-align:right;font-weight:700">${n}</div>
+    </div>
+  `).join("");
+}
+
+function renderAdminParticipantes(main){
+  main.innerHTML = `
+    <h1 class="page-title">Participantes</h1>
+    <p class="page-sub">Filtra, ordena, asigna problemas, cambia estado, deja feedback y puntaje.</p>
+    <div class="toolbar">
+      <input class="search" id="apf" placeholder="Buscar por nombre, correo o área…" oninput="renderAdminTabla()"/>
+      <select class="role-pick" id="apf-status" onchange="renderAdminTabla()">
+        <option value="">Todos los estados</option>
+        <option value="aprobado">Aprobados</option>
+        <option value="pendiente">Pendientes</option>
+        <option value="rechazado">Rechazados</option>
+      </select>
+      <select class="role-pick" id="apf-area" onchange="renderAdminTabla()">
+        <option value="">Todas las áreas</option>
+        ${[...new Set(Object.values(DB.users).filter(isRealParticipant).map(u=>u.area))].sort().map(a=>`<option value="${escapeAttr(a)}">${escapeHTML(a)}</option>`).join("")}
+      </select>
+    </div>
+    <div class="card" id="adm-tabla"></div>
+  `;
+  renderAdminTabla();
+}
+function renderAdminTabla(){
+  const q = (document.getElementById("apf")?.value||"").toLowerCase();
+  const fs = document.getElementById("apf-status")?.value||"";
+  const fa = document.getElementById("apf-area")?.value||"";
+  const rows = Object.values(DB.users)
+    .filter(isRealParticipant)
+    .filter(u=>!q || (u.name+" "+u.email+" "+u.area+" "+u.cargo).toLowerCase().includes(q))
+    .filter(u=>!fs || u.status===fs)
+    .filter(u=>!fa || u.area===fa)
+    .sort((a,b)=>a.name.localeCompare(b.name));
+  const html = `<table><thead><tr><th>Participante</th><th>Área</th><th>Gerente</th><th>Estado</th><th>Ritmo</th><th>Avances</th><th>Carta</th><th>Términos</th><th>Puntaje</th><th></th></tr></thead><tbody>
+    ${rows.map(u=>{
+      const weeks = Object.values(u.progress).filter(p=>p.text||p.files.length).length;
+      const sc = sumScore(u).total;
+      const mgr = DB.users[u.manager]; const mgrName = mgr?mgr.name:(u.manager||"—");
+      const pace = paceFor(u);
+      return `<tr class="${hasActiveHelp(u)?'help-active':''}">
+        <td><strong>${escapeHTML(u.name)}</strong>${hasActiveHelp(u)?' <span class="badge badge--red">AYUDA</span>':''}<div class="muted">${escapeHTML(u.email)}</div></td>
+        <td>${escapeHTML(u.area)}</td>
+        <td>${escapeHTML(mgrName)}</td>
+        <td><span class="badge ${u.status==='aprobado'?'badge--green':u.status==='rechazado'?'badge--red':'badge--amber'}">${u.status}</span></td>
+        <td><span class="badge ${pace.cls}">${pace.label}</span></td>
+        <td>${weeks}/4</td>
+        <td>${u.commitmentSigned?'<span class="badge badge--green">Sí</span>':'<span class="badge badge--gray">No</span>'}</td>
+        <td>${u.termsAccepted?'<span class="badge badge--green">Sí</span>':'<span class="badge badge--gray">No</span>'}</td>
+        <td><strong>${sc.toFixed(1)}</strong></td>
+        <td><button class="btn btn--ghost btn--sm" onclick="viewDetail('${u.email}','a-detalle')">Abrir</button></td>
+      </tr>`;
+    }).join("")}
+  </tbody></table>`;
+  document.getElementById("adm-tabla").innerHTML = html || '<p class="muted">Sin resultados.</p>';
+}
+
+function renderAdminDetalle(main){
+  if(!CURRENT_DETAIL_EMAIL){main.innerHTML='<p class="muted">Selecciona un participante en la pestaña Participantes.</p>';return;}
+  renderDetalle(main, CURRENT_DETAIL_EMAIL, "admin");
+}
+
+/* ---------- Detalle (admin/manager) ---------- */
+function renderDetalle(main, email, viewerRole){
+  const u = DB.users[email];
+  if(!u){main.innerHTML='<p class="muted">Participante no encontrado.</p>';return;}
+  const mgr = DB.users[u.manager]; const mgrName = mgr?mgr.name:(u.manager||"—");
+  const sc = sumScore(u);
+  const pace = paceFor(u);
+  const cls = u.status==='aprobado'?'in':u.status==='rechazado'?'out':'pen';
+  const isAdmin = viewerRole==='admin';
+
+  main.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+      <div>
+        <h1 class="page-title">${escapeHTML(u.name)}</h1>
+        <p class="page-sub">${escapeHTML(u.cargo)} · ${escapeHTML(u.area)} · ${escapeHTML(u.email)} · Gerente: ${escapeHTML(mgrName)}</p>
+      </div>
+      <div><button class="btn btn--ghost btn--sm" onclick="goto('${viewerRole==='admin'?'a-participantes':'g-equipo'}')">← Volver</button></div>
+    </div>
+
+    ${hasActiveHelp(u)?(function(){const ah=activeHelp(u);return `<div class="approve-bar out" style="background:rgba(220,38,38,.08);border-left-color:var(--vp-red)">
+      <span style="font-size:1.4rem">🚨</span>
+      <div style="flex:1;min-width:200px"><strong style="color:var(--vp-red)">Solicitud de ayuda activa</strong><div style="color:var(--vp-text-2);margin-top:.2rem">"${escapeHTML(ah.text)}"</div><div class="muted" style="font-size:.75rem">${fmtDate(ah.ts)}</div></div>
+      <button class="btn btn--primary btn--sm" onclick="openResolveHelpModal('${u.email}','${ah.id}')">Resolver con nota</button>
+    </div>`})():""}
+
+    <div class="approve-bar ${cls}">
+      <strong>Estado actual:</strong>
+      <span class="badge ${u.status==='aprobado'?'badge--green':u.status==='rechazado'?'badge--red':'badge--amber'}" style="font-size:.85rem;padding:.3rem .75rem">${u.status.toUpperCase()}</span>
+      <div style="flex:1"></div>
+      ${isAdmin?`
+        <button class="btn btn--primary btn--sm" onclick="quickStatus('${u.email}','aprobado')" ${u.status==='aprobado'?'disabled style="opacity:.5"':''}>✓ Aprobar al reto</button>
+        <button class="btn btn--ghost btn--sm" onclick="quickStatus('${u.email}','pendiente')" ${u.status==='pendiente'?'disabled style="opacity:.5"':''}>Marcar pendiente</button>
+        <button class="btn btn--danger btn--sm" onclick="quickStatus('${u.email}','rechazado')" ${u.status==='rechazado'?'disabled style="opacity:.5"':''}>✗ No aprobar</button>
+      `:`<span class="muted" style="font-size:.85rem">Solo administradores pueden cambiar el estado.</span>`}
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+        <div>
+          <h3 style="margin-bottom:.1rem">Inscripción</h3>
+          <p class="muted" style="margin:0">${enrollmentDone(u)?'✓ Completó todos los pasos como en una academia.':'Le falta completar pasos para terminar su inscripción.'}</p>
+        </div>
+        <span class="badge ${enrollmentDone(u)?'badge--green':'badge--amber'}">${enrollmentPct(u)}%</span>
+      </div>
+      <div class="enroll-grid">
+        ${enrollmentChecklist(u).map(s=>`<div class="enroll-step ${s.done?'done':''}"><span class="dot">${s.done?'✓':' '}</span>${escapeHTML(s.label)}</div>`).join("")}
+      </div>
+      ${u.commitmentSigned?`<div class="uploaded" style="margin-top:.85rem">
+        <div><strong>📄 ${escapeHTML(u.commitmentSigned.filename)}</strong><div class="meta">Carta firmada · subida ${fmtDate(u.commitmentSigned.ts)}</div></div>
+        <a class="btn btn--primary btn--sm" download="${escapeAttr(u.commitmentSigned.filename)}" href="${u.commitmentSigned.data}">⬇ Descargar carta firmada</a>
+      </div>`:`<p class="muted" style="margin:.85rem 0 0">Aún no ha subido la carta firmada.</p>`}
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+        <div>
+          <h3 style="margin-bottom:.1rem">Ritmo del reto</h3>
+          <p class="muted" style="margin:0">Esperado: <strong>${pace.expected}</strong> semanas · Va en <strong>${pace.have}</strong></p>
+        </div>
+        <span class="badge ${pace.cls}">${pace.label}</span>
+      </div>
+    </div>
+
+    <div class="grid g3">
+      <div class="kpi"><p class="label">Avances</p><div class="value">${Object.values(u.progress).filter(p=>p.text||p.files.length).length}<span style="font-size:1rem;color:var(--vp-text-soft)">/4</span></div></div>
+      <div class="kpi"><p class="label">Puntaje</p><div class="value">${sc.total.toFixed(1)}<span style="font-size:1rem;color:var(--vp-text-soft)">/100</span></div></div>
+      <div class="kpi"><p class="label">Feedback</p><div class="value">${u.feedback.length}</div></div>
+    </div>
+
+    <div class="tabs" id="d-tabs">
+      <button class="tab active" data-t="problema">Problema</button>
+      <button class="tab" data-t="avances">Avances</button>
+      <button class="tab" data-t="evaluacion">Evaluación</button>
+      <button class="tab" data-t="feedback">Feedback</button>
+      ${viewerRole==='admin'?'<button class="tab" data-t="admin">Admin · estado y problema</button>':''}
+    </div>
+    <div id="d-content"></div>
+  `;
+  document.querySelectorAll("#d-tabs .tab").forEach(t=>t.addEventListener("click",()=>{
+    document.querySelectorAll("#d-tabs .tab").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    renderDetalleTab(t.dataset.t, u, viewerRole);
+  }));
+  renderDetalleTab("problema", u, viewerRole);
+}
+function renderDetalleTab(tab, u, viewerRole){
+  const box = document.getElementById("d-content");
+  if(tab==="problema"){
+    box.innerHTML = `
+      <div class="card"><h3>Problema asignado</h3><p style="white-space:pre-wrap">${escapeHTML(u.assignedProblem||"—")}</p>
+      <h4 style="margin-top:1rem">Notas del comité</h4><p style="white-space:pre-wrap">${escapeHTML(u.approvedNote||"—")}</p></div>
+      <div class="card"><h3>Problemas que envió en la inscripción</h3>
+        ${(u.problemas||[]).map((p,i)=>`<details ${i===0?'open':''}><summary>Problema ${i+1}</summary><p style="white-space:pre-wrap;color:var(--vp-text-2)">${escapeHTML(p)}</p></details>`).join("")||'<p class="muted">No envió problemas.</p>'}
+      </div>`;
+  }
+  if(tab==="avances"){
+    box.innerHTML = SEMANAS.map(s=>{
+      const p = u.progress[s.n]||{text:"",files:[]};
+      return `<div class="card"><h3>${s.titulo}</h3><p class="muted">${s.descripcion}</p>
+        <h4>Resumen</h4>
+        <p style="white-space:pre-wrap">${p.text?escapeHTML(p.text):'<span class="muted">— sin texto —</span>'}</p>
+        <h4>Archivos</h4>
+        ${p.files.length?p.files.map(f=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · ${fmtDate(f.ts)}</div></div><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${f.data}">Descargar</a></div>`).join(""):'<p class="muted">— sin archivos —</p>'}
+      </div>`;
+    }).join("");
+  }
+  if(tab==="evaluacion"){
+    box.innerHTML = `<div class="card"><h3>Asignar puntaje (sobre 10 por criterio)</h3>
+      ${DB.criteria.map(c=>{
+        const v = u.scores[c.id]??"";
+        return `<div class="criteria-row">
+          <div><strong>${escapeHTML(c.name)}</strong><div class="muted">${escapeHTML(c.desc)}</div></div>
+          <div><span class="badge badge--navy">Peso ${c.weight}%</span></div>
+          <div class="score-input"><input type="number" min="0" max="10" step="0.1" id="sc-${c.id}" value="${v}"/><span class="muted">/ 10</span></div>
+        </div>`;
+      }).join("")}
+      <div style="margin-top:1rem;display:flex;gap:.5rem;align-items:center"><button class="btn btn--primary btn--sm" onclick="saveScores('${u.email}')">Guardar puntaje</button><span class="muted">Total ponderado actual: <strong>${sumScore(u).total.toFixed(1)}/100</strong></span></div>
+    </div>`;
+  }
+  if(tab==="feedback"){
+    box.innerHTML = `<div class="card"><h3>Dejar feedback</h3>
+      <div class="field"><label>Mensaje</label><textarea id="fb-text" placeholder="Lo que estás haciendo bien, lo que ajustaría, qué esperar para la próxima entrega…"></textarea></div>
+      <button class="btn btn--primary btn--sm" onclick="addFeedback('${u.email}','${viewerRole}')">Publicar feedback</button>
+    </div>
+    <div class="card"><h3>Histórico</h3>${renderFeedbackThread(u)}</div>`;
+  }
+  if(tab==="admin"){
+    box.innerHTML = `<div class="card"><h3>Estado y problema</h3>
+      <div class="field"><label>Estado</label>
+        <select id="ad-status">${["aprobado","pendiente","rechazado"].map(s=>`<option value="${s}" ${u.status===s?"selected":""}>${s}</option>`).join("")}</select>
+      </div>
+      <div class="field"><label>Problema asignado</label>
+        <textarea id="ad-prob" style="min-height:120px">${escapeHTML(u.assignedProblem||"")}</textarea>
+        <p class="muted" style="margin:.4rem 0 0">Sugerencias: ${(u.problemas||[]).map((p,i)=>`<button class="btn btn--ghost btn--sm" onclick="document.getElementById('ad-prob').value=${JSON.stringify(p).replace(/'/g,"\\'")}">Usar problema ${i+1}</button>`).join(" ")}</p>
+      </div>
+      <div class="field"><label>Notas del comité (visibles al participante)</label>
+        <textarea id="ad-note">${escapeHTML(u.approvedNote||"")}</textarea>
+      </div>
+      <button class="btn btn--primary btn--sm" onclick="saveAdminUser('${u.email}')">Guardar cambios</button>
+      <button class="btn btn--ghost btn--sm" onclick="resetPass('${u.email}')">Resetear contraseña a 123456</button>
+    </div>`;
+  }
+}
+function saveScores(email){
+  const u = DB.users[email];
+  DB.criteria.forEach(c=>{
+    const v = parseFloat(document.getElementById("sc-"+c.id).value);
+    if(!isNaN(v)) u.scores[c.id]=Math.max(0,Math.min(10,v));
+    else delete u.scores[c.id];
+  });
+  saveDB();toast("Puntaje guardado");
+  // Refrescar pestaña
+  const active = document.querySelector("#d-tabs .tab.active");
+  if(active) active.click();
+}
+function addFeedback(email, viewerRole){
+  const txt = document.getElementById("fb-text").value.trim();
+  if(!txt) return;
+  const me = DB.users[SESSION.email];
+  DB.users[email].feedback.push({from:me.name,role:viewerRole==="admin"?"Admin":"Gerente",text:txt,ts:Date.now()});
+  saveDB();toast("Feedback enviado");
+  const active = document.querySelector("#d-tabs .tab.active");
+  if(active) active.click();
+}
+function saveAdminUser(email){
+  const u = DB.users[email];
+  const newStatus = document.getElementById("ad-status").value;
+  const newProb = document.getElementById("ad-prob").value;
+  const newNote = document.getElementById("ad-note").value;
+  u.status = newStatus;
+  u.assignedProblem = newProb;
+  u.approvedNote = newNote;
+  saveDB();
+  toast("Cambios guardados");
+  // Re-render para que el banner superior y los KPIs muestren el estado nuevo
+  CURRENT_DETAIL_EMAIL = email;
+  goto('a-detalle');
+  // Volver a la pestaña Admin para seguir editando
+  setTimeout(()=>{
+    const t = document.querySelector('#d-tabs .tab[data-t="admin"]');
+    if(t) t.click();
+  }, 50);
+}
+function resetPass(email){
+  if(!confirm("¿Resetear la contraseña a 123456?")) return;
+  DB.users[email].pass="123456";DB.users[email].passChanged=false;saveDB();toast("Clave reseteada");
+}
+
+function renderAdminCriterios(main){
+  main.innerHTML = `
+    <h1 class="page-title">Criterios de evaluación</h1>
+    <p class="page-sub">Ajusta nombres, descripciones y pesos. Los cambios se reflejan en participantes y gerentes.</p>
+    <div class="card" id="crit-box"></div>
+    <div class="card"><h3>Resumen de pesos</h3><div id="crit-sum"></div></div>
+  `;
+  paintCriterios();
+}
+function paintCriterios(){
+  const box = document.getElementById("crit-box");
+  box.innerHTML = DB.criteria.map((c,i)=>`<div class="field" style="border-bottom:1px dashed var(--vp-line);padding-bottom:.75rem">
+    <div style="display:grid;grid-template-columns:1fr 1fr 100px auto;gap:.5rem;align-items:end">
+      <div><label>Nombre</label><input value="${escapeAttr(c.name)}" oninput="DB.criteria[${i}].name=this.value;saveDB()"/></div>
+      <div><label>Descripción</label><input value="${escapeAttr(c.desc)}" oninput="DB.criteria[${i}].desc=this.value;saveDB()"/></div>
+      <div><label>Peso %</label><input type="number" min="0" max="100" value="${c.weight}" oninput="DB.criteria[${i}].weight=parseFloat(this.value)||0;saveDB();paintSum()"/></div>
+      <button class="btn btn--danger btn--sm" onclick="if(confirm('¿Borrar criterio?')){DB.criteria.splice(${i},1);saveDB();paintCriterios()}">Quitar</button>
+    </div>
+  </div>`).join("");
+  box.innerHTML += `<button class="btn btn--ghost btn--sm" style="margin-top:.75rem" onclick="DB.criteria.push({id:'c'+Date.now(),name:'Nuevo criterio',desc:'',weight:5});saveDB();paintCriterios()">+ Añadir criterio</button>`;
+  paintSum();
+}
+function paintSum(){
+  const total = DB.criteria.reduce((a,c)=>a+(c.weight||0),0);
+  document.getElementById("crit-sum").innerHTML = `<p>Suma de pesos: <strong style="color:${total===100?'var(--vp-green-deep)':'var(--vp-red)'}">${total}%</strong> ${total===100?'✓':' — ajusta para que sumen 100'}</p>`;
+}
+
+/* ---------- 7.b · ADMIN: editar recursos + ayuda + config ---------- */
+function renderAdminRecursos(main){
+  main.innerHTML = `
+    <h1 class="page-title">Editar recursos del reto</h1>
+    <p class="page-sub">Estos bloques se ven en la página "Recursos del reto" de participantes y gerentes.</p>
+    <div class="card"><h3>Planes Platzi</h3>
+      <div class="field"><label>Precio mensual (USD)</label><input type="number" min="0" id="cfg-pm" value="${DB.config.platziMonthlyUSD}"/></div>
+      <div class="field"><label>Precio anual (USD)</label><input type="number" min="0" id="cfg-py" value="${DB.config.platziYearlyUSD}"/></div>
+      <button class="btn btn--primary btn--sm" onclick="DB.config.platziMonthlyUSD=parseFloat(document.getElementById('cfg-pm').value)||0;DB.config.platziYearlyUSD=parseFloat(document.getElementById('cfg-py').value)||0;saveDB();toast('Planes Platzi actualizados')">Guardar planes</button>
+    </div>
+    <div class="card"><h3>Bloques de recursos</h3><div id="rec-list"></div>
+      <button class="btn btn--ghost btn--sm" style="margin-top:.75rem" onclick="DB.resources.push({id:'r'+Date.now(),titulo:'Nuevo recurso',cuerpo:'',link:''});saveDB();paintRec()">+ Añadir recurso</button>
+    </div>
+  `;
+  paintRec();
+}
+function paintRec(){
+  const box = document.getElementById("rec-list");
+  if(!box) return;
+  box.innerHTML = DB.resources.map((r,i)=>`<div style="padding:.75rem 0;border-bottom:1px dashed var(--vp-line)">
+    <div class="field"><label>Título</label><input value="${escapeAttr(r.titulo)}" oninput="DB.resources[${i}].titulo=this.value;saveDB()"/></div>
+    <div class="field"><label>Cuerpo</label><textarea oninput="DB.resources[${i}].cuerpo=this.value;saveDB()">${escapeHTML(r.cuerpo)}</textarea></div>
+    <div class="field"><label>Link (opcional)</label><input value="${escapeAttr(r.link||'')}" placeholder="https://..." oninput="DB.resources[${i}].link=this.value;saveDB()"/></div>
+    <button class="btn btn--danger btn--sm" onclick="if(confirm('¿Borrar este recurso?')){DB.resources.splice(${i},1);saveDB();paintRec()}">Quitar bloque</button>
+  </div>`).join("");
+}
+function renderAdminAyuda(main){
+  const all = Object.values(DB.users).filter(isRealParticipant);
+  // Construir lista plana de todos los items con dueño
+  const items = [];
+  all.forEach(u=>{
+    (u.helpHistory||[]).forEach(h=>items.push({u, h}));
+  });
+  const active = items.filter(x=>x.h.status==='active').sort((a,b)=>b.h.ts-a.h.ts);
+  const resolved = items.filter(x=>x.h.status==='resolved').sort((a,b)=>(b.h.resolvedAt||0)-(a.h.resolvedAt||0));
+  main.innerHTML = `
+    <h1 class="page-title">Solicitudes de ayuda</h1>
+    <p class="page-sub">Quienes pulsan "Necesito ayuda" aparecen aquí. Resuelve con una nota — queda como referencia para futuros casos similares.</p>
+    <div class="card"><h3>Activas (${active.length})</h3>
+      ${active.length?active.map(({u,h})=>`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;padding:.65rem 0;border-bottom:1px dashed var(--vp-line)">
+        <div><strong>${escapeHTML(u.name)}</strong> <span class="muted">· ${escapeHTML(u.area)} · gerente: ${escapeHTML((DB.users[u.manager]||{}).name||u.manager)}</span>
+        <div style="margin-top:.2rem;color:var(--vp-text-2)">"${escapeHTML(h.text)}"</div>
+        <div class="muted" style="font-size:.75rem">Pidió ayuda ${fmtDate(h.ts)}</div></div>
+        <div style="display:flex;gap:.4rem;flex-shrink:0"><button class="btn btn--ghost btn--sm" onclick="viewDetail('${u.email}','a-detalle')">Abrir</button><button class="btn btn--primary btn--sm" onclick="openResolveHelpModal('${u.email}','${h.id}')">Resolver</button></div>
+      </div>`).join(""):'<p class="muted">No hay solicitudes activas ahora mismo.</p>'}
+    </div>
+    <div class="card"><h3>Histórico resueltas (${resolved.length}) — referencia</h3>
+      ${resolved.length?resolved.map(({u,h})=>`<details style="border-bottom:1px dashed var(--vp-line);padding:.4rem 0"><summary><strong>${escapeHTML(u.name)}</strong> · ${escapeHTML(u.area)} · ${fmtDate(h.resolvedAt)}</summary>
+        <p style="margin:.4rem 0;color:var(--vp-text-2)"><strong>Bloqueo:</strong> "${escapeHTML(h.text)}"</p>
+        <p style="margin:.2rem 0;color:var(--vp-text-2)"><strong>Resolución:</strong> ${escapeHTML(h.resolution||'(sin nota)')}</p>
+        <p class="muted" style="font-size:.75rem">Resuelta por ${escapeHTML(h.resolvedBy||'—')} el ${fmtDate(h.resolvedAt)}. Pedida originalmente ${fmtDate(h.ts)}.</p>
+      </details>`).join(""):'<p class="muted">— sin historial —</p>'}
+    </div>
+  `;
+}
+
+/* Modal para resolver con nota — admin/manager */
+function openResolveHelpModal(email, helpId){
+  const u = DB.users[email];
+  const h = (u.helpHistory||[]).find(x=>x.id===helpId);
+  if(!h){toast('No encontrada');return;}
+  const m = document.getElementById('help-modal');
+  document.getElementById('help-current').innerHTML = `<div class="status-banner rej" style="margin-bottom:1rem"><strong>Bloqueo de ${escapeHTML(u.name)}:</strong><br/>"${escapeHTML(h.text)}"</div>`;
+  document.getElementById('help-text').value = '';
+  document.getElementById('help-text').placeholder = 'Escribe la resolución / qué hiciste / qué le respondiste. Queda como referencia para casos futuros similares.';
+  document.getElementById('help-resolve-btn').style.display='none';
+  document.querySelector('#help-modal .btn--primary').textContent='Resolver con nota';
+  document.querySelector('#help-modal .btn--primary').setAttribute('onclick',`doResolveHelp('${email}','${helpId}')`);
+  m.classList.remove('hidden');
+}
+function doResolveHelp(email, helpId){
+  const note = document.getElementById('help-text').value.trim();
+  const u = DB.users[email];
+  const h = (u.helpHistory||[]).find(x=>x.id===helpId);
+  if(!h) return;
+  h.status='resolved';h.resolvedAt=Date.now();h.resolvedBy=DB.users[SESSION.email].name;h.resolution=note;
+  saveDB();closeHelpModal();toast('Resuelta ✓');
+  // Restaurar onclick del botón primario por defecto (submit del participante)
+  document.querySelector('#help-modal .btn--primary').setAttribute('onclick','submitHelp()');
+  document.querySelector('#help-modal .btn--primary').textContent='Solicitar ayuda';
+  goto(CURRENT_PAGE);
+}
+function renderAdminConfig(main){
+  const cfg = DB.config;
+  main.innerHTML = `
+    <h1 class="page-title">Configuración del reto</h1>
+    <p class="page-sub">Fechas y duración. Esto alimenta el reloj del reto y el indicador de ritmo.</p>
+    <div class="card" style="max-width:520px">
+      <div class="field"><label>Fecha de inicio</label><input type="date" id="cfg-start" value="${cfg.startISO}"/></div>
+      <div class="field"><label>Duración (semanas)</label><input type="number" min="1" max="12" id="cfg-w" value="${cfg.weeks}"/></div>
+      <button class="btn btn--primary" onclick="DB.config.startISO=document.getElementById('cfg-start').value;DB.config.weeks=parseInt(document.getElementById('cfg-w').value)||4;saveDB();toast('Reto actualizado');goto('a-tablero')">Guardar</button>
+    </div>
+  `;
+}
+
+/* ---------- 7.d · Resumen diario ---------- */
+function buildDailySummary(){
+  const all = Object.values(DB.users).filter(isRealParticipant);
+  const cp = challengeProgress();
+  const today = new Date();
+  const sod = new Date(today.getFullYear(),today.getMonth(),today.getDate()).getTime();
+  const conAvanceHoy = [];
+  all.forEach(u=>{
+    Object.entries(u.progress||{}).forEach(([n,p])=>{
+      const updatedToday = (p.files||[]).some(f=>f.ts>=sod);
+      if(updatedToday) conAvanceHoy.push({u, semana:n});
+    });
+  });
+  const ayudas = [];
+  all.forEach(u=>(u.helpHistory||[]).filter(h=>h.status==='active').forEach(h=>ayudas.push({u,h})));
+  const totales = {
+    inscritos: all.length,
+    aprobados: all.filter(u=>u.status==='aprobado').length,
+    cartasFirmadas: all.filter(u=>u.commitmentSigned).length,
+    inscritosCompletos: all.filter(enrollmentDone).length,
+    conAvanceTotal: all.filter(u=>Object.values(u.progress).some(p=>p.text||p.files.length)).length
+  };
+  const topRit = all.slice().sort((a,b)=>sumScore(b).total-sumScore(a).total).slice(0,5);
+  const atrasados = all.filter(u=>paceFor(u).cls==='badge--red');
+  return {today, cp, conAvanceHoy, ayudas, totales, topRit, atrasados};
+}
+function dailySummaryHTML(s){
+  return `<h2>Resumen Reto IA · ${s.today.toLocaleDateString('es-VE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}</h2>
+<p><strong>Semana esperada:</strong> ${s.cp.expectedWeek} de ${DB.config.weeks} · ${Math.round(s.cp.elapsed)} días corridos</p>
+<h3>Cifras</h3>
+<ul>
+  <li>Inscritos: ${s.totales.inscritos}</li>
+  <li>Aprobados al reto: ${s.totales.aprobados}</li>
+  <li>Inscripción 100% completa: ${s.totales.inscritosCompletos}</li>
+  <li>Con avance en total: ${s.totales.conAvanceTotal}</li>
+  <li>Cartas firmadas: ${s.totales.cartasFirmadas}</li>
+</ul>
+<h3>Avances cargados hoy (${s.conAvanceHoy.length})</h3>
+${s.conAvanceHoy.length?'<ul>'+s.conAvanceHoy.map(x=>`<li>${x.u.name} (${x.u.area}) — Semana ${x.semana}</li>`).join('')+'</ul>':'<p><em>Nadie subió avance hoy.</em></p>'}
+<h3>Solicitudes de ayuda activas (${s.ayudas.length})</h3>
+${s.ayudas.length?'<ul>'+s.ayudas.map(x=>`<li><strong>${x.u.name}</strong>: "${x.h.text}"</li>`).join('')+'</ul>':'<p><em>Sin solicitudes activas.</em></p>'}
+<h3>Top 5 puntaje actual</h3>
+<ol>${s.topRit.map(u=>`<li>${u.name} — ${sumScore(u).total.toFixed(1)}/100</li>`).join('')}</ol>
+<h3>Atrasados (${s.atrasados.length})</h3>
+${s.atrasados.length?'<ul>'+s.atrasados.map(u=>`<li>${u.name} (${u.area}) — gerente ${(DB.users[u.manager]||{}).name||u.manager}</li>`).join('')+'</ul>':'<p><em>Nadie marcado como atrasado.</em></p>'}
+<hr/><p><small>Enviado automáticamente desde el Portal Reto IA. Para detalle entra a <a href="https://reto-ia-vepagos.netlify.app/portal.html">el portal</a>.</small></p>`;
+}
+function renderAdminResumen(main){
+  const s = buildDailySummary();
+  const html = dailySummaryHTML(s);
+  main.innerHTML = `
+    <h1 class="page-title">Resumen diario</h1>
+    <p class="page-sub">Vista previa del email que reciben Catherine e Isabella con el resumen del día.</p>
+
+    <div class="card" style="border-left:5px solid var(--vp-amber);background:rgba(245,158,11,.06)">
+      <h3>⚠️ Cómo se envía</h3>
+      <p style="margin:0 0 .5rem">El portal vive en el navegador, así que el envío 100% automático todos los días requiere un cron en Netlify o Zapier. Tienes 3 opciones:</p>
+      <ol style="margin:0;padding-left:1.2rem;color:var(--vp-text-2)">
+        <li><strong>Manual</strong>: usa los botones de abajo para enviar el resumen del día.</li>
+        <li><strong>Auto-envío al abrir el portal</strong>: cada vez que un admin entra una vez al día, el portal lo dispara solo (activado abajo).</li>
+        <li><strong>Cron real</strong>: contratar 5 min de set-up con un Netlify Scheduled Function + persistencia en backend. Avísame y lo dejo.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>Enviar ahora</h3>
+      <p class="muted">Acciones disponibles:</p>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn--primary btn--sm" onclick="sendDailySummaryNetlify()">📧 Enviar email a admins (Netlify Forms)</button>
+        <button class="btn btn--ghost btn--sm" onclick="openMailtoSummary()">✉️ Abrir mi cliente de correo</button>
+        <button class="btn btn--ghost btn--sm" onclick="copyHTMLToClipboard()">📋 Copiar HTML</button>
+        <label style="display:inline-flex;align-items:center;gap:.4rem;font-size:.85rem;margin-left:.5rem"><input type="checkbox" id="auto-daily" ${localStorage.getItem('vp-auto-daily')==='1'?'checked':''} onchange="localStorage.setItem('vp-auto-daily',this.checked?'1':'0')"/>Auto-enviar 1×/día al entrar como admin</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Vista previa</h3>
+      <div id="summary-prev" style="background:#fff;padding:1rem;border:1px solid var(--vp-line);border-radius:8px;font-size:.92rem">${html}</div>
+    </div>
+  `;
+}
+function sendDailySummaryNetlify(){
+  const s = buildDailySummary();
+  sendNetlifyForm('daily-summary',{
+    fecha: s.today.toLocaleDateString('es-VE'),
+    total_inscritos: s.totales.inscritos,
+    con_avance_hoy: s.conAvanceHoy.length,
+    ayudas_activas: s.ayudas.length,
+    resumen_html: dailySummaryHTML(s)
+  });
+  toast('Resumen enviado a Netlify Forms ✓');
+}
+function openMailtoSummary(){
+  const s = buildDailySummary();
+  const subject = encodeURIComponent("Reto IA · Resumen "+s.today.toLocaleDateString('es-VE'));
+  // mailto soporta texto plano; tira HTML como bullet plano
+  const lines = [];
+  lines.push(`RESUMEN RETO IA · ${s.today.toLocaleDateString('es-VE')}`);
+  lines.push(`Semana esperada: ${s.cp.expectedWeek}/${DB.config.weeks}`);
+  lines.push("");
+  lines.push("CIFRAS:");
+  lines.push(`  Inscritos: ${s.totales.inscritos} · Aprobados: ${s.totales.aprobados}`);
+  lines.push(`  Inscripción completa: ${s.totales.inscritosCompletos} · Con avance: ${s.totales.conAvanceTotal}`);
+  lines.push(`  Cartas firmadas: ${s.totales.cartasFirmadas}`);
+  lines.push("");
+  lines.push(`AVANCES HOY (${s.conAvanceHoy.length}):`);
+  s.conAvanceHoy.forEach(x=>lines.push(`  - ${x.u.name} (${x.u.area}) Semana ${x.semana}`));
+  if(!s.conAvanceHoy.length) lines.push("  (nadie)");
+  lines.push("");
+  lines.push(`AYUDAS ACTIVAS (${s.ayudas.length}):`);
+  s.ayudas.forEach(x=>lines.push(`  - ${x.u.name}: "${x.h.text}"`));
+  if(!s.ayudas.length) lines.push("  (ninguna)");
+  lines.push("");
+  lines.push(`ATRASADOS (${s.atrasados.length}):`);
+  s.atrasados.forEach(u=>lines.push(`  - ${u.name} (${u.area})`));
+  const body = encodeURIComponent(lines.join("\n"));
+  window.location.href = `mailto:ikmnapolitano@gmail.com,cmorales@vepagos.com?subject=${subject}&body=${body}`;
+}
+function copyHTMLToClipboard(){
+  const txt = document.getElementById('summary-prev').innerHTML;
+  navigator.clipboard?.writeText(txt).then(()=>toast('HTML copiado ✓'),()=>toast('No se pudo copiar'));
+}
+/* Auto-envío 1× al día si está activado */
+function maybeAutoDaily(){
+  if(SESSION.activeRole!=='admin') return;
+  if(localStorage.getItem('vp-auto-daily')!=='1') return;
+  const last = localStorage.getItem('vp-last-daily');
+  const today = new Date().toISOString().slice(0,10);
+  if(last===today) return;
+  sendDailySummaryNetlify();
+  localStorage.setItem('vp-last-daily', today);
+}
+
+/* ---------- 7.e · Email marketing ---------- */
+function renderAdminMarketing(main){
+  const list = (DB.campaigns||[]).slice().sort((a,b)=>(b.scheduledFor||b.createdAt||0)-(a.scheduledFor||a.createdAt||0));
+  const pend = list.filter(c=>c.status==='draft'||c.status==='scheduled');
+  const sent = list.filter(c=>c.status==='sent');
+  main.innerHTML = `
+    <h1 class="page-title">Email marketing</h1>
+    <p class="page-sub">Compón y envía emails al reto: a todos, a un área, a un gerente, individuales o personalizado. Programa envíos futuros para no olvidarte.</p>
+
+    <div class="card" style="border-left:5px solid var(--vp-amber);background:rgba(245,158,11,.06)">
+      <p style="margin:0;font-size:.9rem"><strong>Cómo funciona el envío:</strong> el botón <em>"Enviar ahora"</em> abre tu cliente de correo (Gmail / Outlook) con los destinatarios y el mensaje pre-llenado. Le das clic a "Enviar" y listo. Los envíos programados quedan acá como recordatorio; al llegar la fecha verás un aviso al abrir el portal. Para envío 100% automatizado con adjuntos y tracking, se requiere conectar Resend / Mailchimp (lo podemos hacer aparte).</p>
+    </div>
+
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-bottom:.75rem;flex-wrap:wrap">
+      <button class="btn btn--primary" onclick="newCampaign()">+ Nuevo email</button>
+    </div>
+
+    <div class="card">
+      <h3>Pendientes y programados (${pend.length})</h3>
+      ${pend.length?pend.map(c=>campaignRow(c)).join("") : '<p class="muted">No hay borradores ni programados.</p>'}
+    </div>
+    <div class="card">
+      <h3>Enviados (${sent.length})</h3>
+      ${sent.length?sent.slice(0,30).map(c=>campaignRow(c)).join("") : '<p class="muted">— sin historial —</p>'}
+    </div>
+  `;
+}
+function campaignRow(c){
+  const dest = describeAudience(c.audience);
+  const when = c.status==='sent' ? 'Enviada '+fmtDate(c.sentAt) : c.scheduledFor ? 'Programada para '+fmtDate(c.scheduledFor) : 'Borrador';
+  return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;padding:.6rem 0;border-bottom:1px dashed var(--vp-line);flex-wrap:wrap">
+    <div style="min-width:200px">
+      <strong>${escapeHTML(c.subject||'(sin asunto)')}</strong>
+      <div class="muted" style="font-size:.78rem">${escapeHTML(dest)} · ${when}</div>
+    </div>
+    <div style="display:flex;gap:.4rem">
+      ${c.status==='sent'?'<span class="badge badge--green">Enviada</span>':'<button class="btn btn--ghost btn--sm" onclick="editCampaign(\''+c.id+'\')">Editar</button>'}
+      ${c.status!=='sent'?'<button class="btn btn--primary btn--sm" onclick="sendCampaign(\''+c.id+'\')">Enviar ahora</button>':''}
+      ${c.status!=='sent'?'<button class="btn btn--danger btn--sm" onclick="deleteCampaign(\''+c.id+'\')">Borrar</button>':''}
+    </div>
+  </div>`;
+}
+function describeAudience(a){
+  if(!a) return "Sin definir";
+  if(a.type==='all') return "Todos los inscritos";
+  if(a.type==='area') return "Área: "+(a.area||'');
+  if(a.type==='manager') return "Equipo de: "+((DB.users[a.managerEmail]||{}).name||a.managerEmail||'');
+  if(a.type==='custom') return (a.emails||[]).length+" destinatarios personalizados";
+  if(a.type==='individual') return (a.emails||[]).length+" persona(s) elegida(s)";
+  return "?";
+}
+function newCampaign(){
+  const id = "c"+Date.now();
+  DB.campaigns.push({id, subject:"", body:"", audience:{type:"all"}, link:"", attachments:[], status:"draft", createdAt:Date.now(), scheduledFor:0});
+  saveDB();
+  CURRENT_CAMPAIGN_ID = id;
+  goto("a-marketing-edit");
+}
+function editCampaign(id){CURRENT_CAMPAIGN_ID=id;goto("a-marketing-edit");}
+function deleteCampaign(id){
+  if(!confirm("¿Borrar email?")) return;
+  DB.campaigns = (DB.campaigns||[]).filter(c=>c.id!==id);
+  saveDB();goto("a-marketing");
+}
+function renderAdminMarketingEdit(main){
+  const c = (DB.campaigns||[]).find(x=>x.id===CURRENT_CAMPAIGN_ID);
+  if(!c){goto("a-marketing");return;}
+  const allParts = Object.values(DB.users).filter(isRealParticipant).sort((a,b)=>a.name.localeCompare(b.name));
+  const areas = [...new Set(allParts.map(u=>u.area))].sort();
+  const managers = [...new Set(allParts.map(u=>u.manager).filter(Boolean))];
+  main.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+      <div><h1 class="page-title">${c.status==='sent'?'Ver email':'Editar email'}</h1><p class="page-sub">${c.status==='sent'?'Enviado el '+fmtDate(c.sentAt):'Borrador · creado '+fmtDate(c.createdAt)}</p></div>
+      <button class="btn btn--ghost btn--sm" onclick="goto('a-marketing')">← Volver</button>
+    </div>
+
+    <div class="card">
+      <h3>1. Destinatarios</h3>
+      <div class="field"><label>A quién va este email</label>
+        <select id="cmp-audience" onchange="onAudienceChange()">
+          <option value="all" ${c.audience.type==='all'?'selected':''}>Todos los inscritos</option>
+          <option value="area" ${c.audience.type==='area'?'selected':''}>Por área</option>
+          <option value="manager" ${c.audience.type==='manager'?'selected':''}>Por gerente</option>
+          <option value="individual" ${c.audience.type==='individual'?'selected':''}>Elegir personas</option>
+          <option value="custom" ${c.audience.type==='custom'?'selected':''}>Correos personalizados (texto libre)</option>
+        </select>
+      </div>
+      <div id="cmp-audience-detail"></div>
+    </div>
+
+    <div class="card">
+      <h3>2. Mensaje</h3>
+      <div class="field"><label>Asunto</label><input id="cmp-subject" value="${escapeAttr(c.subject||'')}" placeholder="Ej: Recordatorio · entrega Semana 2 este viernes"/></div>
+      <div class="field"><label>Cuerpo (texto plano; los saltos de línea se respetan)</label><textarea id="cmp-body" style="min-height:200px" placeholder="Hola {{nombre}},&#10;&#10;Te escribo para…">${escapeHTML(c.body||'')}</textarea></div>
+      <p class="muted" style="font-size:.78rem;margin:.2rem 0">Variables disponibles: <code>{{nombre}}</code>, <code>{{correo}}</code>, <code>{{area}}</code>, <code>{{gerente}}</code>. Se reemplazan al enviar.</p>
+      <div class="field"><label>Link (opcional, se pega al final)</label><input id="cmp-link" value="${escapeAttr(c.link||'')}" placeholder="https://reto-ia-vepagos.netlify.app/portal.html"/></div>
+      <div class="field"><label>Adjuntos (opcional · solo se mostrarán como referencia en el email; los adjuntos reales se manejan al enviar desde tu cliente)</label>
+        <label class="upload-btn">+ Adjuntar archivos<input type="file" multiple onchange="uploadCampaignFiles('${c.id}',this.files)"/></label>
+        ${(c.attachments||[]).map((f,i)=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)}</div></div><div style="display:flex;gap:.4rem"><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${f.data}">Descargar</a><button class="btn btn--danger btn--sm" onclick="removeCampaignFile('${c.id}',${i})">Quitar</button></div></div>`).join("")}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>3. ¿Enviar ahora o programar?</h3>
+      <div class="field"><label>Programar envío (opcional, ISO YYYY-MM-DDTHH:MM)</label><input type="datetime-local" id="cmp-when" value="${c.scheduledFor?new Date(c.scheduledFor).toISOString().slice(0,16):''}"/></div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn--ghost btn--sm" onclick="saveCampaign('${c.id}',false)">Guardar borrador</button>
+        <button class="btn btn--primary btn--sm" onclick="saveCampaign('${c.id}',true)">Guardar y programar</button>
+        <button class="btn btn--navy btn--sm" onclick="sendCampaign('${c.id}')">Enviar ahora →</button>
+      </div>
+    </div>
+  `;
+  // pintar selector de detalle según tipo
+  renderAudienceDetail(c, allParts, areas, managers);
+}
+function onAudienceChange(){
+  const c = (DB.campaigns||[]).find(x=>x.id===CURRENT_CAMPAIGN_ID);
+  c.audience = {type: document.getElementById('cmp-audience').value};
+  saveDB();
+  const allParts = Object.values(DB.users).filter(isRealParticipant).sort((a,b)=>a.name.localeCompare(b.name));
+  const areas = [...new Set(allParts.map(u=>u.area))].sort();
+  const managers = [...new Set(allParts.map(u=>u.manager).filter(Boolean))];
+  renderAudienceDetail(c, allParts, areas, managers);
+}
+function renderAudienceDetail(c, allParts, areas, managers){
+  const box = document.getElementById('cmp-audience-detail');
+  if(!box) return;
+  if(c.audience.type==='area'){
+    box.innerHTML = `<div class="field"><label>Selecciona el área</label><select onchange="DB.campaigns.find(x=>x.id==='${c.id}').audience.area=this.value;saveDB()">${areas.map(a=>`<option value="${escapeAttr(a)}" ${c.audience.area===a?'selected':''}>${escapeHTML(a)}</option>`).join('')}</select></div>`;
+  } else if(c.audience.type==='manager'){
+    box.innerHTML = `<div class="field"><label>Selecciona el gerente</label><select onchange="DB.campaigns.find(x=>x.id==='${c.id}').audience.managerEmail=this.value;saveDB()">${managers.map(m=>`<option value="${escapeAttr(m)}" ${c.audience.managerEmail===m?'selected':''}>${escapeHTML((DB.users[m]||{}).name||m)}</option>`).join('')}</select></div>`;
+  } else if(c.audience.type==='individual'){
+    const selected = new Set(c.audience.emails||[]);
+    box.innerHTML = `<div class="field"><label>Selecciona personas</label><div style="max-height:240px;overflow-y:auto;border:1px solid var(--vp-line);border-radius:8px;padding:.5rem">${allParts.map(p=>`<label style="display:flex;align-items:center;gap:.4rem;padding:.2rem 0;font-size:.85rem"><input type="checkbox" data-email="${escapeAttr(p.email)}" ${selected.has(p.email)?'checked':''} onchange="toggleAudienceEmail('${c.id}','${p.email}',this.checked)"/>${escapeHTML(p.name)} <span class="muted">· ${escapeHTML(p.area)}</span></label>`).join('')}</div></div>`;
+  } else if(c.audience.type==='custom'){
+    box.innerHTML = `<div class="field"><label>Correos (uno por línea)</label><textarea oninput="DB.campaigns.find(x=>x.id==='${c.id}').audience.emails=this.value.split(/[\\n,;]/).map(s=>s.trim()).filter(Boolean);saveDB()" style="min-height:120px">${(c.audience.emails||[]).join('\n')}</textarea></div>`;
+  } else {
+    box.innerHTML = `<p class="muted">Se enviará a <strong>${allParts.length}</strong> inscritos.</p>`;
+  }
+}
+function toggleAudienceEmail(cId, email, checked){
+  const c = DB.campaigns.find(x=>x.id===cId);
+  if(!c.audience.emails) c.audience.emails=[];
+  if(checked && !c.audience.emails.includes(email)) c.audience.emails.push(email);
+  if(!checked) c.audience.emails = c.audience.emails.filter(e=>e!==email);
+  saveDB();
+}
+function uploadCampaignFiles(cId, files){
+  const c = DB.campaigns.find(x=>x.id===cId);
+  if(!c.attachments) c.attachments=[];
+  [...files].forEach(f=>{const r=new FileReader();r.onload=e=>{c.attachments.push({name:f.name,size:f.size,data:e.target.result});saveDB();goto('a-marketing-edit');};r.readAsDataURL(f);});
+}
+function removeCampaignFile(cId, i){
+  const c = DB.campaigns.find(x=>x.id===cId);
+  c.attachments.splice(i,1);saveDB();goto('a-marketing-edit');
+}
+function saveCampaign(cId, schedule){
+  const c = DB.campaigns.find(x=>x.id===cId);
+  c.subject = document.getElementById('cmp-subject').value;
+  c.body = document.getElementById('cmp-body').value;
+  c.link = document.getElementById('cmp-link').value;
+  const w = document.getElementById('cmp-when').value;
+  c.scheduledFor = w ? new Date(w).getTime() : 0;
+  c.status = c.scheduledFor && schedule ? 'scheduled' : 'draft';
+  saveDB();toast(c.status==='scheduled'?'Programada ✓':'Borrador guardado');goto('a-marketing');
+}
+function recipientsFor(c){
+  const all = Object.values(DB.users).filter(isRealParticipant);
+  if(c.audience.type==='all') return all;
+  if(c.audience.type==='area') return all.filter(u=>u.area===c.audience.area);
+  if(c.audience.type==='manager') return all.filter(u=>u.manager===c.audience.managerEmail);
+  if(c.audience.type==='individual'||c.audience.type==='custom'){
+    const set = new Set((c.audience.emails||[]).map(e=>e.toLowerCase()));
+    const inDB = all.filter(u=>set.has(u.email));
+    // Custom: emails que no estén en DB se incluyen como "anónimos" sin variables
+    const inDBSet = new Set(inDB.map(u=>u.email));
+    const extras = [...set].filter(e=>!inDBSet.has(e)).map(e=>({email:e, name:e.split('@')[0], area:"", manager:""}));
+    return [...inDB, ...extras];
+  }
+  return [];
+}
+function renderBody(body, link, user){
+  let out = (body||"")
+    .replace(/\{\{nombre\}\}/g, (user.name||"").split(" ")[0])
+    .replace(/\{\{correo\}\}/g, user.email||"")
+    .replace(/\{\{area\}\}/g, user.area||"")
+    .replace(/\{\{gerente\}\}/g, (DB.users[user.manager]||{}).name||user.manager||"");
+  if(link) out += "\n\n"+link;
+  return out;
+}
+function sendCampaign(cId){
+  // Save current edits first if we're in edit view
+  const subjEl = document.getElementById('cmp-subject');
+  if(subjEl){
+    const c = DB.campaigns.find(x=>x.id===cId);
+    c.subject = subjEl.value;
+    c.body = document.getElementById('cmp-body').value;
+    c.link = document.getElementById('cmp-link').value;
+    saveDB();
+  }
+  const c = DB.campaigns.find(x=>x.id===cId);
+  const rcpts = recipientsFor(c);
+  if(!rcpts.length){toast('No hay destinatarios');return;}
+  if(!c.subject){toast('Pon un asunto');return;}
+  // Estrategia: mailto con BCC. Algunos clientes truncan en ~2000 chars de URL, así que dividimos en lotes.
+  const BATCH = 30;
+  let i = 0;
+  // Para envío con variables: si el cuerpo usa {{nombre}}, mejor enviar uno-por-uno.
+  const hasVars = /\{\{(nombre|correo|area|gerente)\}\}/.test(c.body||"");
+  if(hasVars){
+    if(!confirm(`Este email usa variables personalizadas. Se abrirá tu cliente de correo ${rcpts.length} veces (uno por persona). ¿Continuar?`)) return;
+    rcpts.forEach(u=>{
+      const body = encodeURIComponent(renderBody(c.body, c.link, u));
+      const subject = encodeURIComponent(c.subject);
+      window.open(`mailto:${u.email}?subject=${subject}&body=${body}`,"_blank");
+    });
+  } else {
+    const subject = encodeURIComponent(c.subject);
+    const body = encodeURIComponent(renderBody(c.body, c.link, {}));
+    while(i<rcpts.length){
+      const chunk = rcpts.slice(i,i+BATCH).map(u=>u.email).join(",");
+      window.open(`mailto:?bcc=${chunk}&subject=${subject}&body=${body}`,"_blank");
+      i += BATCH;
+    }
+  }
+  // Marcar como enviada y loguear en Netlify Forms
+  c.status='sent';c.sentAt=Date.now();c.sentTo=rcpts.map(u=>u.email);
+  saveDB();
+  sendNetlifyForm('campaign-log',{asunto:c.subject, destinatarios:c.sentTo.join(", "), enviada_por: DB.users[SESSION.email].name, fecha:new Date().toLocaleString('es-VE'), cuerpo:c.body+(c.link?"\n\n"+c.link:"")});
+  toast('Email abierto en tu cliente · marcado como enviado');
+  goto('a-marketing');
+}
+/* Aviso de campañas programadas que ya llegó la fecha */
+function checkScheduledCampaigns(){
+  if(SESSION.activeRole!=='admin') return;
+  const due = (DB.campaigns||[]).filter(c=>c.status==='scheduled' && c.scheduledFor && c.scheduledFor<=Date.now());
+  if(due.length){
+    setTimeout(()=>{
+      if(confirm(`Tienes ${due.length} email${due.length>1?'s':''} programado${due.length>1?'s':''} listo${due.length>1?'s':''} para enviar. ¿Ir a Email marketing?`)) goto('a-marketing');
+    }, 800);
+  }
+}
+
+var CURRENT_CAMPAIGN_ID = null;
+
+/* ---------- 7.c · Handlers compartidos ---------- */
+function quickStatus(email, status){
+  const u = DB.users[email];
+  u.status = status;
+  if(status==='aprobado' && !u.assignedProblem) u.assignedProblem = u.problemas[0]||"";
+  saveDB();toast('Estado actualizado a '+status);
+  CURRENT_DETAIL_EMAIL = email;
+  goto(SESSION.activeRole==='admin'?'a-detalle':'g-detalle');
+}
+function toggleTerms(checked){
+  const u = DB.users[SESSION.email];
+  const wasNotAccepted = !u.termsAccepted;
+  u.termsAccepted = !!checked;
+  u.termsAcceptedAt = checked ? Date.now() : 0;
+  saveDB();
+  if(checked && wasNotAccepted && enrollmentDone(u)){
+    confetti();
+    toast('¡Inscripción 100% lista! 🎉');
+  } else {
+    toast(checked?'Términos aceptados ✓':'Aceptación retirada');
+  }
+  goto('carta');
+}
+function openHelpModal(){
+  const u = DB.users[SESSION.email];
+  const ah = activeHelp(u);
+  const resolved = (u.helpHistory||[]).filter(h=>h.status==='resolved').sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0));
+  const m = document.getElementById('help-modal');
+  m.classList.remove('hidden');
+  document.getElementById('help-text').value = ah ? ah.text : '';
+  document.getElementById('help-text').placeholder = 'Ej: no logro conectar Cursor con la API de OpenAI / no entiendo qué subir en Semana 2…';
+  let histHTML = '';
+  if(ah){
+    histHTML += `<div class="status-banner rej" style="margin-bottom:1rem"><strong>Solicitud activa desde ${fmtDate(ah.ts)}</strong><div class="muted" style="margin-top:.2rem">"${escapeHTML(ah.text)}"</div></div>`;
+  }
+  if(resolved.length){
+    histHTML += `<details style="margin-bottom:1rem;background:var(--vp-bg-soft);padding:.6rem .85rem;border-radius:8px"><summary>Tus ${resolved.length} solicitud${resolved.length>1?'es':''} resuelta${resolved.length>1?'s':''} (referencia)</summary>${resolved.map(h=>`<div style="padding:.5rem 0;border-top:1px dashed var(--vp-line);font-size:.85rem"><strong>Pediste:</strong> "${escapeHTML(h.text)}"<br/><strong>Resolución:</strong> ${escapeHTML(h.resolution||'(sin nota)')}<div class="muted" style="font-size:.72rem">${escapeHTML(h.resolvedBy||'—')} · ${fmtDate(h.resolvedAt)}</div></div>`).join("")}</details>`;
+  }
+  document.getElementById('help-current').innerHTML = histHTML;
+  document.getElementById('help-resolve-btn').style.display = ah ? 'inline-flex' : 'none';
+  // Reset al modo "solicitar" (por si lo dejó admin como "resolver")
+  const primaryBtn = document.querySelector('#help-modal .btn--primary');
+  primaryBtn.textContent = ah ? 'Actualizar solicitud' : 'Solicitar ayuda';
+  primaryBtn.setAttribute('onclick','submitHelp()');
+}
+function closeHelpModal(){document.getElementById('help-modal').classList.add('hidden');}
+function submitHelp(){
+  const txt = document.getElementById('help-text').value.trim();
+  if(!txt){toast('Cuéntanos dónde estás trancado');return;}
+  const u = DB.users[SESSION.email];
+  if(!Array.isArray(u.helpHistory)) u.helpHistory=[];
+  const ah = activeHelp(u);
+  if(ah){
+    ah.text = txt; ah.ts = Date.now();
+  } else {
+    u.helpHistory.push({id:"hr"+Date.now(), text:txt, ts:Date.now(), status:'active', resolvedAt:0, resolvedBy:'', resolution:''});
+  }
+  saveDB();
+  // Disparar email a admins (Netlify Forms)
+  sendNetlifyForm('help-alert', {
+    participante: u.name, correo: u.email, area: u.area, gerente: (DB.users[u.manager]||{}).name||u.manager,
+    bloqueo: txt, fecha: new Date().toLocaleString('es-VE'), portal: location.origin+location.pathname+"?u="+encodeURIComponent(u.email)
+  });
+  closeHelpModal();applyRoleUI();toast('Solicitud enviada. Avisamos a admins por correo.');
+  if(CURRENT_PAGE==='resumen') goto('resumen');
+}
+function resolveOwnHelp(){
+  const u = DB.users[SESSION.email];
+  const ah = activeHelp(u);
+  if(ah){ah.status='resolved';ah.resolvedAt=Date.now();ah.resolvedBy=u.name+' (auto)';ah.resolution='Cerrada por el participante';}
+  saveDB();closeHelpModal();applyRoleUI();toast('Solicitud cerrada');
+  if(CURRENT_PAGE==='resumen') goto('resumen');
+}
+function resolveHelpFor(email){
+  const u = DB.users[email];
+  const ah = activeHelp(u);
+  if(ah){ah.status='resolved';ah.resolvedAt=Date.now();ah.resolvedBy=DB.users[SESSION.email].name;ah.resolution='Resuelta sin nota';}
+  saveDB();toast('Marcada como resuelta');goto(CURRENT_PAGE);
+}
+
+/* ---------- Envío vía Netlify Forms (silencioso) ---------- */
+function sendNetlifyForm(formName, data){
+  try {
+    const body = new URLSearchParams();
+    body.append('form-name', formName);
+    Object.keys(data).forEach(k=>body.append(k, String(data[k]||'')));
+    fetch('/', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: body.toString()}).catch(()=>{});
+  } catch(e){}
+}
+
+/* ---------- 8. UTIL ---------- */
+function sumScore(u){
+  let total = 0;
+  DB.criteria.forEach(c=>{
+    const s = u.scores[c.id]||0;
+    total += (s/10) * (c.weight||0);
+  });
+  return {total};
+}
+function escapeHTML(s){return (s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
+function escapeAttr(s){return escapeHTML(s);}
+function fmtSize(b){if(!b)return "—";const k=1024;if(b<k)return b+" B";if(b<k*k)return (b/k).toFixed(1)+" KB";return (b/k/k).toFixed(1)+" MB";}
+function fmtDate(ts){if(!ts)return "—";return new Date(ts).toLocaleString("es-VE",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});}
+function toast(msg, kind){
+  // kind: 'ok' (default) | 'err' | 'info'
+  const bg = kind==='err' ? 'var(--vp-red)' : kind==='info' ? 'var(--vp-navy)' : 'var(--vp-green-deep)';
+  const icon = kind==='err' ? '✗' : kind==='info' ? 'ℹ' : '✓';
+  let t = document.createElement("div");
+  t.innerHTML = `<span style="font-size:1.2rem">${icon}</span><span>${escapeHTML(msg)}</span>`;
+  t.style.cssText=`position:fixed;top:1.25rem;left:50%;transform:translate(-50%,-12px);background:${bg};color:#fff;padding:.85rem 1.4rem;border-radius:999px;font-family:var(--fd);letter-spacing:.04em;text-transform:uppercase;font-size:.95rem;font-weight:700;box-shadow:0 14px 40px rgba(0,0,0,.25);z-index:9999;opacity:0;transition:opacity .2s,transform .25s;display:flex;align-items:center;gap:.6rem;max-width:90vw`;
+  document.body.appendChild(t);
+  requestAnimationFrame(()=>{t.style.opacity="1";t.style.transform="translate(-50%,0)";});
+  setTimeout(()=>{t.style.opacity="0";t.style.transform="translate(-50%,-12px)";setTimeout(()=>t.remove(),300)},2800);
+}
+
+/* ---------- 9. INIT ---------- */
+if(!tryRestore()){/* show login */}
+</script>
+</body>
+</html>

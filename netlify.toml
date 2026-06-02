@@ -1,0 +1,39 @@
+# Netlify config — Reto IA Vepagos
+# Sitio estático + Functions para email transaccional (Resend) y marketing (Brevo).
+
+[build]
+  publish = "."
+  functions = "netlify/functions"
+  # Al desplegar desde Git, Netlify ejecuta este comando antes de empaquetar
+  # las funciones. Con Drop no se ejecuta: por eso faltaban node_modules.
+  command = "npm install"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[functions]
+  # Bundler zisi (zip-it-and-ship-it, default de Netlify): incluye
+  # node_modules en el zip del Lambda. Forzamos a incluir @netlify/blobs
+  # junto con sus dependencias transitivas (runtime-utils, dev-utils) por si
+  # zisi no las detecta automáticamente como sí hace con imports directos.
+  node_bundler = "zisi"
+  included_files = [
+    "node_modules/@netlify/blobs/**",
+    "node_modules/@netlify/runtime-utils/**",
+    "node_modules/@netlify/dev-utils/**"
+  ]
+
+# Alias bonito para la función de sync (por si el config.path de la función no se aplica)
+[[redirects]]
+  from = "/api/sync"
+  to = "/.netlify/functions/sync"
+  status = 200
+  force = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "interest-cohort=()"
