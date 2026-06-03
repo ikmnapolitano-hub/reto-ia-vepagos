@@ -215,16 +215,32 @@ details[open] summary{margin-bottom:.5rem}
 #help-fab:hover{transform:translateY(-2px);box-shadow:0 14px 36px rgba(220,38,38,.45)}
 #help-fab.active{background:#991B1B}
 
-/* Notificaciones de comunidad (chat + DMs) — al lado de "Necesito ayuda" */
-#notif-fab{position:fixed;bottom:1.5rem;right:calc(1.5rem + 220px);background:var(--vp-navy);color:#fff;border:none;width:3.1rem;height:3.1rem;border-radius:50%;cursor:pointer;box-shadow:0 10px 30px rgba(0,31,96,.35);z-index:90;display:flex;align-items:center;justify-content:center;font-size:1.4rem;transition:transform .15s,box-shadow .15s}
-#notif-fab:hover{transform:translateY(-2px);box-shadow:0 14px 36px rgba(0,31,96,.45)}
-#notif-fab .notif-dot{position:absolute;top:-4px;right:-4px;background:#DC2626;color:#fff;font-family:var(--fd);font-weight:800;font-size:.7rem;min-width:1.25rem;height:1.25rem;border-radius:999px;padding:0 .35rem;display:flex;align-items:center;justify-content:center;border:2px solid #fff;line-height:1}
-#notif-fab.has-unread{animation:notif-pulse 2s ease-in-out infinite}
-@keyframes notif-pulse{0%,100%{box-shadow:0 10px 30px rgba(0,31,96,.35)}50%{box-shadow:0 10px 30px rgba(0,31,96,.35),0 0 0 8px rgba(0,206,124,.18)}}
-#notif-pop{position:fixed;bottom:5rem;right:calc(1.5rem + 220px);transform:translateX(50%);background:#fff;border:1px solid var(--vp-line);border-radius:12px;box-shadow:0 16px 50px rgba(0,0,0,.18);padding:.85rem 1rem;min-width:240px;max-width:300px;z-index:91;font-size:.85rem}
-#notif-pop .row{padding:.4rem 0;border-bottom:1px dashed var(--vp-line);display:flex;justify-content:space-between;gap:.5rem;align-items:center}
-#notif-pop .row:last-child{border-bottom:none}
-#notif-pop .row strong{font-weight:700}
+/* Bell de notificaciones — vive en el TOPBAR junto al rol del usuario.
+   El FAB azul flotante anterior se elimina. */
+.tb-bell{position:relative;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.25);width:38px;height:38px;min-width:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0;transition:border-color .12s,background .12s}
+.tb-bell:hover{border-color:var(--vp-green);background:rgba(0,206,124,.12)}
+.tb-bell.has-unread{animation:bell-pulse 2.4s ease-in-out infinite}
+.tb-bell-dot{position:absolute;top:-3px;right:-3px;background:#DC2626;color:#fff;font-family:var(--fd);font-weight:800;font-size:.62rem;min-width:1.1rem;height:1.1rem;border-radius:999px;padding:0 .3rem;display:flex;align-items:center;justify-content:center;border:2px solid var(--vp-navy);line-height:1}
+@keyframes bell-pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,206,124,0)}50%{box-shadow:0 0 0 6px rgba(0,206,124,.22)}}
+
+/* Panel desplegable de notificaciones — estilo LinkedIn */
+#notif-panel{position:fixed;top:60px;right:1rem;background:#fff;color:var(--vp-text);border:1px solid var(--vp-line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.22);width:380px;max-height:72vh;display:flex;flex-direction:column;z-index:200;overflow:hidden}
+#notif-panel .panel-head{padding:.75rem 1rem;border-bottom:1px solid var(--vp-line);display:flex;justify-content:space-between;align-items:center;gap:.5rem;background:var(--vp-bg-soft)}
+#notif-panel .panel-head strong{font-family:var(--fd);letter-spacing:.04em;text-transform:uppercase;font-size:.85rem;color:var(--vp-navy)}
+#notif-panel .panel-list{overflow-y:auto;flex:1}
+#notif-panel .notif-item{padding:.7rem 1rem;border-bottom:1px solid var(--vp-line);display:flex;gap:.65rem;cursor:pointer;transition:background .12s;align-items:flex-start}
+#notif-panel .notif-item:hover{background:var(--vp-bg-soft)}
+#notif-panel .notif-item.unread{background:rgba(0,206,124,.07);border-left:3px solid var(--vp-green);padding-left:calc(1rem - 3px)}
+#notif-panel .notif-icon{font-size:1.1rem;flex-shrink:0;width:2.2rem;height:2.2rem;border-radius:50%;background:var(--vp-bg-soft);display:flex;align-items:center;justify-content:center}
+#notif-panel .notif-item.unread .notif-icon{background:rgba(0,206,124,.18)}
+#notif-panel .notif-body{flex:1;min-width:0}
+#notif-panel .notif-title{font-weight:700;font-size:.86rem;margin-bottom:.1rem;line-height:1.3}
+#notif-panel .notif-snippet{font-size:.78rem;color:var(--vp-text-soft);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#notif-panel .notif-ts{font-size:.68rem;color:var(--vp-text-soft);margin-top:.25rem;font-family:var(--fd);letter-spacing:.04em;text-transform:uppercase}
+#notif-panel .notif-dismiss{background:transparent;border:none;color:var(--vp-text-soft);cursor:pointer;padding:0 .25rem;font-size:1.4rem;line-height:1;flex-shrink:0;align-self:flex-start;border-radius:50%;width:1.6rem;height:1.6rem;display:flex;align-items:center;justify-content:center}
+#notif-panel .notif-dismiss:hover{background:var(--vp-bg-soft);color:var(--vp-red)}
+#notif-panel .panel-empty{padding:2.25rem 1rem;text-align:center;color:var(--vp-text-soft);font-size:.88rem}
+#notif-panel .panel-foot{padding:.5rem 1rem;border-top:1px solid var(--vp-line);text-align:center;background:var(--vp-bg-soft)}
 .modal{position:fixed;inset:0;background:rgba(0,31,96,.55);backdrop-filter:blur(4px);display:grid;place-items:center;padding:1rem;z-index:100}
 .modal-card{background:#fff;border-radius:var(--r-lg);padding:1.75rem;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
 
@@ -465,9 +481,9 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
 
   /* === HELP FAB — sobre bottom nav === */
   #help-fab{bottom:calc(74px + env(safe-area-inset-bottom));right:.85rem;padding:.7rem 1rem;font-size:.78rem;border-radius:999px;box-shadow:0 8px 22px rgba(220,38,38,.4)}
-  /* === NOTIF FAB en móvil — a la izquierda del de ayuda === */
-  #notif-fab{bottom:calc(74px + env(safe-area-inset-bottom));right:calc(.85rem + 195px);width:2.7rem;height:2.7rem;font-size:1.2rem}
-  #notif-pop{right:calc(.85rem + 195px);transform:translateX(40%);bottom:calc(74px + env(safe-area-inset-bottom) + 3.2rem)}
+  /* === Bell en topbar en móvil — más compacta === */
+  .tb-bell{width:34px;height:34px;min-width:34px}
+  #notif-panel{top:56px;right:.5rem;left:.5rem;width:auto;max-height:80vh}
 
   /* === Login === */
   .login-wrap{padding:1rem;align-items:flex-start;padding-top:6vh}
@@ -650,6 +666,11 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
         <div class="user-name" id="tb-name"></div>
         <div class="user-area" id="tb-area"></div>
       </div>
+      <!-- Campana de notificaciones unificada (sólo participantes) -->
+      <button id="tb-bell" class="tb-bell hidden" onclick="notifClick(event)" aria-label="Notificaciones" title="Notificaciones">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="tb-bell-dot" id="tb-bell-dot" style="display:none">0</span>
+      </button>
       <span class="user-role" id="tb-role">PARTICIPANTE</span>
       <span id="sync-badge" class="tb-desktop-only" onclick="diagnoseSync()" title="Clic para diagnosticar">● Sincronizando…</span>
       <button class="tb-logout" onclick="logout()" aria-label="Salir">
@@ -716,10 +737,7 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
   <!-- Botón flotante de ayuda (solo participantes) -->
   <button id="help-fab" class="hidden" onclick="openHelpModal()" title="¿Estás trancado?">🚨 Necesito ayuda</button>
 
-  <!-- Bell de comunidad: chat público + DMs (solo participantes) -->
-  <button id="notif-fab" class="hidden" onclick="notifClick(event)" title="Mensajes y chat de la comunidad" aria-label="Notificaciones">
-    🔔<span class="notif-dot" id="notif-dot" style="display:none">0</span>
-  </button>
+  <!-- (la campana ahora vive en el topbar; el FAB flotante fue retirado) -->
 
   <!-- Modal de ayuda -->
   <div id="help-modal" class="modal hidden" onclick="if(event.target===this)closeHelpModal()">
@@ -1421,17 +1439,19 @@ function applyRoleUI(){
   } else {
     fab.classList.add("hidden");
   }
-  // Bell de notificaciones de comunidad — sólo participantes
-  const nfab = document.getElementById("notif-fab");
-  if(nfab){
-    if(r==="participant"){
-      nfab.classList.remove("hidden");
-      notifStartPolling();   // arranca/refresca el conteo
-    } else {
-      nfab.classList.add("hidden");
-      notifStopPolling();
+  // Campana del topbar — sólo participantes (notificaciones unificadas)
+  try{
+    const tbell = document.getElementById("tb-bell");
+    if(tbell){
+      if(r==="participant"){
+        tbell.classList.remove("hidden");
+        try{ notifStartPolling(); }catch(e){ console.warn('notif start err', e); }
+      } else {
+        tbell.classList.add("hidden");
+        try{ notifStopPolling(); }catch(e){}
+      }
     }
-  }
+  }catch(e){ console.warn('notif role-ui err', e); }
   // Pill con count de ayuda en sidebar admin
   const pill = document.getElementById("help-pill");
   if(pill){
@@ -2325,14 +2345,53 @@ function openCommModal(html){
 }
 function closeCommModal(){ const e=document.getElementById('comm-modal'); if(e) e.remove(); }
 
-/* ---------- NOTIFICACIONES DE COMUNIDAD (campana tipo LinkedIn) ----------
-   Polling cada 25s del chat público y del inbox de DMs. Mantenemos una
-   marca "última vez vista" por usuario en localStorage para no inflar
-   ningún store. Nunca borramos datos: sólo movemos la marca local. */
-var NOTIF_STATE = { timer:null, chatUnread:0, dmUnread:0, popOpen:false, lastTotal:0 };
+/* =====================================================================
+   CENTRO UNIFICADO DE NOTIFICACIONES (campana del topbar)
+   Fuentes:
+     · feedback   — nuevas notas del comité
+     · info       — cambios importantes (status aprobado/rechazado,
+                    problema asignado, ayuda resuelta, deadline próximo)
+     · chat       — nuevos mensajes en el chat público de comunidad
+     · dm         — DMs personales nuevos
+   Persistencia: localStorage por usuario. Ningún registro toca la DB.
+   Polling: cada 30 s en background (sólo para participantes).
+   Mejores prácticas:
+     - Badge con conteo (capado a 99+)
+     - Pulso sutil cuando hay novedades
+     - "Marcar todas como leídas"
+     - Cada notificación tiene "ir" (abre origen) o "X" (descartar)
+     - Cierra al click fuera o al pulsar Esc
+     - Estado "leído" separado de "descartado" para revisitar
+   ===================================================================== */
+var NOTIF_STATE = { timer:null, items:[], unread:0, panelOpen:false };
 
-function notifSeenChatKey(){ return 'vp-comm-seen-chat-' + (SESSION && SESSION.email||''); }
-function notifSeenDmKey(){   return 'vp-comm-seen-dm-'   + (SESSION && SESSION.email||''); }
+function _notifEmail(){ return (SESSION && SESSION.email) ? String(SESSION.email).toLowerCase() : ''; }
+function notifKeyRead(){    return 'vp-notif-read-'    + _notifEmail(); }
+function notifKeyDismiss(){ return 'vp-notif-dismiss-' + _notifEmail(); }
+function notifSeenChatKey(){ return 'vp-comm-seen-chat-' + _notifEmail(); }
+function notifSeenDmKey(){   return 'vp-comm-seen-dm-'   + _notifEmail(); }
+
+function notifGetReadIds(){
+  try{ return new Set(JSON.parse(localStorage.getItem(notifKeyRead())||'[]')); }
+  catch{ return new Set(); }
+}
+function notifGetDismissedIds(){
+  try{ return new Set(JSON.parse(localStorage.getItem(notifKeyDismiss())||'[]')); }
+  catch{ return new Set(); }
+}
+function notifSaveSet(key, set){
+  try{ localStorage.setItem(key, JSON.stringify([...set])); }catch{}
+}
+function notifMarkRead(id){ const s=notifGetReadIds(); s.add(id); notifSaveSet(notifKeyRead(),s); }
+function notifDismiss(id){  const s=notifGetDismissedIds(); s.add(id); notifSaveSet(notifKeyDismiss(),s); }
+function notifMarkAllReadFor(items){
+  const s = notifGetReadIds();
+  items.forEach(n=>s.add(n.id));
+  notifSaveSet(notifKeyRead(), s);
+}
+
+/* Compatibilidad con la mensajería: seguimos guardando una marca por
+   conversación para mostrar "visto" dentro de Comunidad. */
 function notifGetSeenChat(){ const n=Number(localStorage.getItem(notifSeenChatKey())||0); return isFinite(n)?n:0; }
 function notifSetSeenChat(ts){ try{ localStorage.setItem(notifSeenChatKey(), String(ts||Date.now())); }catch{} }
 function notifGetSeenDmMap(){ try{ return JSON.parse(localStorage.getItem(notifSeenDmKey())||'{}')||{}; }catch{ return {}; } }
@@ -2342,129 +2401,292 @@ function notifSetSeenDm(other, ts){
   try{ localStorage.setItem(notifSeenDmKey(), JSON.stringify(m)); }catch{}
 }
 
-async function notifRefresh(){
-  if(!SESSION || SESSION.activeRole!=='participant') return;
-  const me = SESSION.email;
-  // Cargamos chat e inbox en paralelo
+/* Construye la lista actual de notificaciones a partir de DB + COMM_STATE.
+   Defensivo: si DB o SESSION no están listos, retorna []. */
+function notifBuild(){
+  const out = [];
+  const me = _notifEmail();
+  if(typeof DB === 'undefined' || !DB || !DB.users) return out;
+  const u = (SESSION && DB.users[SESSION.email]) || null;
+  if(!u) return out;
+
+  // 1) Feedback nuevo del comité
+  const lastFb = u.lastFeedbackRead || 0;
+  (u.feedback||[]).forEach(f=>{
+    const ts = f.ts || 0;
+    if(ts <= lastFb) return;
+    out.push({
+      id: 'fb-' + (f.id || ts),
+      kind: 'feedback',
+      icon: '🗒️',
+      title: 'Feedback nuevo del comité',
+      body: (f.text||'(sin texto)').slice(0, 160),
+      ts,
+      important: false,
+      link: 'feedback'
+    });
+  });
+
+  // 2) Información importante — cambios de estado / problema asignado / ayuda resuelta
+  if(u.status === 'aprobado'){
+    out.push({
+      id: 'st-aprobado-' + (u.approvedAt || u.created || 0),
+      kind: 'info',
+      icon: '✅',
+      title: '¡Estás aprobado al reto!',
+      body: u.approvedNote || 'Ya puedes empezar la Semana 1.',
+      ts: u.approvedAt || u.created || (Date.now()-86400000),
+      important: true,
+      link: 'resumen'
+    });
+  } else if(u.status === 'rechazado'){
+    out.push({
+      id: 'st-rechazado-' + (u.created||0),
+      kind: 'info',
+      icon: 'ℹ️',
+      title: 'Resultado de tu inscripción',
+      body: u.approvedNote || 'Revisa el estado de tu inscripción.',
+      ts: u.created || Date.now(),
+      important: true,
+      link: 'resumen'
+    });
+  }
+  if((u.assignedProblem||'').trim()){
+    out.push({
+      id: 'assigned-' + (u.assignedProblem||'').length + '-' + (u.created||0),
+      kind: 'info',
+      icon: '📌',
+      title: 'Tienes un problema asignado',
+      body: u.assignedProblem,
+      ts: u.created || Date.now(),
+      important: false,
+      link: 'problema'
+    });
+  }
+  (u.helpHistory||[]).forEach(h=>{
+    if(h.status==='resolved' && h.resolvedAt){
+      out.push({
+        id: 'help-' + (h.id || h.resolvedAt),
+        kind: 'info',
+        icon: '🛟',
+        title: 'Tu solicitud de ayuda fue resuelta',
+        body: h.resolution || 'Revisa la nota de cierre.',
+        ts: h.resolvedAt,
+        important: false,
+        link: 'resumen'
+      });
+    }
+  });
+
+  // 3) Chat público — mensajes de otros más nuevos que la última vez vista
   try{
-    const [cRes, iRes] = await Promise.all([
-      fetch(COMM_API+'?kind=chat', {cache:'no-store'}).then(r=>r.json()).catch(()=>({items:[]})),
-      fetch(COMM_API+'?kind=inbox&me='+encodeURIComponent(me), {cache:'no-store'}).then(r=>r.json()).catch(()=>({items:[]}))
-    ]);
-    const chatItems = (cRes.items||[]).filter(x=>!x.hidden && (x.fromEmail||'').toLowerCase()!==me.toLowerCase());
     const seenChat = notifGetSeenChat();
-    const chatUnread = chatItems.filter(x=>x.ts>seenChat).length;
+    (COMM_STATE.chat||[])
+      .filter(m => !m.hidden && (m.fromEmail||'').toLowerCase() !== me && (m.ts||0) > seenChat)
+      .slice(-8)
+      .forEach(m => out.push({
+        id: 'chat-' + (m.id||m.ts),
+        kind: 'chat',
+        icon: '💬',
+        title: (m.fromName||'Comunidad') + ' escribió en el chat',
+        body: (m.text||'').slice(0,160),
+        ts: m.ts || 0,
+        important: false,
+        link: 'comunidad',
+        linkAction: function(){ COMM_STATE.tab='chat'; goto('comunidad'); }
+      }));
+  }catch{}
+
+  // 4) DMs personales
+  try{
     const seenDm = notifGetSeenDmMap();
-    const inbox = iRes.items||[];
-    const dmUnread = inbox.filter(s=>{
-      // sólo cuenta si el último mensaje no es mío y es más nuevo que la última vez que abrí esa conversación
-      if(s.lastFromMe) return false;
+    (COMM_STATE.inbox||[]).forEach(s=>{
+      if(s.lastFromMe) return;
       const seen = Number(seenDm[String(s.other).toLowerCase()]||0);
-      return s.lastTs > seen;
-    }).length;
-    NOTIF_STATE.chatUnread = chatUnread;
-    NOTIF_STATE.dmUnread = dmUnread;
+      if((s.lastTs||0) <= seen) return;
+      const ou = (DB.users[s.other])||{name:s.other};
+      out.push({
+        id: 'dm-' + s.other + '-' + s.lastTs,
+        kind: 'dm',
+        icon: '✉️',
+        title: 'Mensaje directo de ' + (ou.name||s.other),
+        body: (s.lastText||'').slice(0,160),
+        ts: s.lastTs || 0,
+        important: false,
+        link: 'comunidad',
+        linkAction: function(){ commOpenDM(s.other); }
+      });
+    });
+  }catch{}
+
+  // Filtrar descartadas + ordenar + tope sensato (no inflamos UI)
+  const dismissed = notifGetDismissedIds();
+  return out
+    .filter(n => !dismissed.has(n.id))
+    .sort((a,b)=> (b.ts||0) - (a.ts||0))
+    .slice(0, 30);
+}
+
+async function notifRefresh(){
+  // Defensa completa: ningún error aquí debe poder romper el render del portal.
+  try{
+    if(!SESSION || SESSION.activeRole!=='participant') return;
+    const me = SESSION.email;
+    // Alimentar COMM_STATE para que notifBuild() tenga datos frescos
+    try{
+      const [c, i] = await Promise.all([
+        fetch(COMM_API+'?kind=chat', {cache:'no-store'}).then(r=>r.json()).catch(()=>({items:[]})),
+        fetch(COMM_API+'?kind=inbox&me='+encodeURIComponent(me), {cache:'no-store'}).then(r=>r.json()).catch(()=>({items:[]}))
+      ]);
+      if(typeof COMM_STATE !== 'undefined'){
+        COMM_STATE.chat = Array.isArray(c && c.items)?c.items:[];
+        COMM_STATE.inbox = Array.isArray(i && i.items)?i.items:[];
+        COMM_STATE.chatLoadedAt = Date.now();
+        COMM_STATE.inboxLoadedAt = Date.now();
+      }
+    }catch(e){ /* offline-friendly */ }
+
+    let items = [];
+    try{ items = notifBuild() || []; }catch(e){ console.warn('notifBuild err', e); items=[]; }
+    const read = notifGetReadIds();
+    NOTIF_STATE.items = items;
+    NOTIF_STATE.unread = items.filter(n=>!read.has(n.id)).length;
     notifPaintBadge();
-  }catch(e){ /* offline-friendly */ }
+    if(NOTIF_STATE.panelOpen) notifRenderPanel();
+  }catch(e){
+    console.warn('notifRefresh err', e);
+  }
 }
 
 function notifPaintBadge(){
-  const dot = document.getElementById('notif-dot');
-  const fab = document.getElementById('notif-fab');
-  if(!dot || !fab) return;
-  const total = (NOTIF_STATE.chatUnread||0) + (NOTIF_STATE.dmUnread||0);
-  if(total>0){
+  const dot = document.getElementById('tb-bell-dot');
+  const bell = document.getElementById('tb-bell');
+  if(!dot || !bell) return;
+  const n = NOTIF_STATE.unread||0;
+  if(n>0){
     dot.style.display='flex';
-    dot.textContent = total>99 ? '99+' : String(total);
-    fab.classList.add('has-unread');
-    fab.title = `Tienes ${total} actualización${total===1?'':'es'} de la comunidad`;
+    dot.textContent = n>99 ? '99+' : String(n);
+    bell.classList.add('has-unread');
+    bell.title = 'Tienes ' + n + ' notificación' + (n===1?'':'es');
+    bell.setAttribute('aria-label', bell.title);
   } else {
     dot.style.display='none';
-    fab.classList.remove('has-unread');
-    fab.title = 'Mensajes y chat de la comunidad';
+    bell.classList.remove('has-unread');
+    bell.title = 'Sin notificaciones nuevas';
+    bell.setAttribute('aria-label', bell.title);
   }
-  NOTIF_STATE.lastTotal = total;
 }
 
 function notifStartPolling(){
   notifRefresh();
   if(NOTIF_STATE.timer) return;
-  NOTIF_STATE.timer = setInterval(notifRefresh, 25000);
+  NOTIF_STATE.timer = setInterval(notifRefresh, 30000);
 }
 function notifStopPolling(){
   if(NOTIF_STATE.timer){ clearInterval(NOTIF_STATE.timer); NOTIF_STATE.timer=null; }
 }
 
-function notifClosePop(){
-  const p = document.getElementById('notif-pop'); if(p) p.remove();
-  NOTIF_STATE.popOpen = false;
-}
-
 function notifClick(ev){
   if(ev && ev.stopPropagation) ev.stopPropagation();
-  // Si hay popup abierto, lo cerramos
-  if(NOTIF_STATE.popOpen){ notifClosePop(); return; }
-  const chatN = NOTIF_STATE.chatUnread||0;
-  const dmN   = NOTIF_STATE.dmUnread||0;
-  // Si no hay nada nuevo: abrir comunidad en el chat directamente
-  if(chatN===0 && dmN===0){
-    COMM_STATE.tab = 'chat';
-    goto('comunidad');
-    return;
-  }
-  // Hay novedades: mostramos un pop con resumen y dos atajos
-  const pop = document.createElement('div');
-  pop.id = 'notif-pop';
-  pop.innerHTML = `
-    <div class="row">
-      <span>💬 <strong>Chat público</strong></span>
-      <span>${chatN>0?`<span class="badge badge--green">${chatN} nuevo${chatN===1?'':'s'}</span>`:'<span class="muted">al día</span>'}</span>
+  if(NOTIF_STATE.panelOpen){ notifClosePanel(); return; }
+  notifRenderPanel();
+}
+
+function notifRenderPanel(){
+  const existing = document.getElementById('notif-panel');
+  if(existing) existing.remove();
+  const items = NOTIF_STATE.items || [];
+  const read = notifGetReadIds();
+  const panel = document.createElement('div');
+  panel.id = 'notif-panel';
+  panel.innerHTML = `
+    <div class="panel-head">
+      <strong>Notificaciones${NOTIF_STATE.unread?` · ${NOTIF_STATE.unread} nueva${NOTIF_STATE.unread===1?'':'s'}`:''}</strong>
+      ${items.length?'<button class="btn btn--ghost btn--sm" onclick="notifMarkAllAndPaint()">Marcar todas leídas</button>':''}
     </div>
-    <div class="row">
-      <span>✉️ <strong>Mensajes directos</strong></span>
-      <span>${dmN>0?`<span class="badge badge--green">${dmN} nuevo${dmN===1?'':'s'}</span>`:'<span class="muted">al día</span>'}</span>
+    <div class="panel-list">
+      ${items.length === 0
+        ? '<div class="panel-empty">🎉 Estás al día — no hay nada nuevo.</div>'
+        : items.map(n => {
+            const isRead = read.has(n.id);
+            return `<div class="notif-item ${isRead?'':'unread'}" onclick="notifOpenItem('${escapeAttr(n.id)}')">
+              <div class="notif-icon">${n.icon}</div>
+              <div class="notif-body">
+                <div class="notif-title">${n.important?'<span class="badge badge--amber" style="font-size:.58rem;margin-right:.35rem;padding:.1rem .35rem">Importante</span>':''}${escapeHTML(n.title)}</div>
+                <div class="notif-snippet">${escapeHTML(n.body||'')}</div>
+                <div class="notif-ts">${fmtDate(n.ts)}</div>
+              </div>
+              <button class="notif-dismiss" title="Descartar esta notificación" aria-label="Descartar" onclick="event.stopPropagation();notifDismissAndPaint('${escapeAttr(n.id)}')">×</button>
+            </div>`;
+          }).join('')
+      }
     </div>
-    <div style="display:flex;gap:.4rem;margin-top:.6rem;flex-wrap:wrap">
-      ${dmN>0?'<button class="btn btn--primary btn--sm" onclick="notifOpen(\'dm\')">Ver mensajes</button>':''}
-      ${chatN>0?'<button class="btn btn--primary btn--sm" onclick="notifOpen(\'chat\')">Ver chat</button>':''}
-      <button class="btn btn--ghost btn--sm" onclick="notifClosePop()">Cerrar</button>
+    <div class="panel-foot">
+      <button class="btn btn--ghost btn--sm" onclick="notifClosePanel()">Cerrar</button>
     </div>
   `;
-  document.body.appendChild(pop);
-  NOTIF_STATE.popOpen = true;
-  // Cerrar al hacer click fuera
+  document.body.appendChild(panel);
+  NOTIF_STATE.panelOpen = true;
+  // Cerrar al click fuera o con Esc
   setTimeout(()=>{
     const onDoc = (e)=>{
-      const p = document.getElementById('notif-pop');
-      const f = document.getElementById('notif-fab');
-      if(!p) { document.removeEventListener('click', onDoc); return; }
-      if(p.contains(e.target) || (f && f.contains(e.target))) return;
-      notifClosePop(); document.removeEventListener('click', onDoc);
+      const p = document.getElementById('notif-panel');
+      const b = document.getElementById('tb-bell');
+      if(!p){ document.removeEventListener('click', onDoc); document.removeEventListener('keydown', onKey); return; }
+      if(p.contains(e.target) || (b && b.contains(e.target))) return;
+      notifClosePanel();
+      document.removeEventListener('click', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+    const onKey = (e)=>{
+      if(e.key==='Escape'){
+        notifClosePanel();
+        document.removeEventListener('click', onDoc);
+        document.removeEventListener('keydown', onKey);
+      }
     };
     document.addEventListener('click', onDoc);
+    document.addEventListener('keydown', onKey);
   }, 0);
 }
 
-function notifOpen(tab){
-  notifClosePop();
-  COMM_STATE.tab = (tab==='dm'?'dm':'chat');
-  goto('comunidad');
+function notifClosePanel(){
+  const p = document.getElementById('notif-panel');
+  if(p) p.remove();
+  NOTIF_STATE.panelOpen = false;
 }
 
-/* Marcar el chat como visto cuando estás en la pestaña chat */
+function notifOpenItem(id){
+  const n = (NOTIF_STATE.items||[]).find(x=>x.id===id);
+  if(!n) return;
+  notifMarkRead(id);
+  notifClosePanel();
+  if(typeof n.linkAction === 'function'){ n.linkAction(); }
+  else if(n.link){ goto(n.link); }
+  notifRefresh();
+}
+
+function notifMarkAllAndPaint(){
+  notifMarkAllReadFor(NOTIF_STATE.items || []);
+  notifRefresh();
+}
+function notifDismissAndPaint(id){
+  notifDismiss(id);
+  notifRefresh();
+}
+
+/* Marcar el chat como visto al entrar a la pestaña chat de Comunidad */
 function notifMarkChatSeen(){
   const items = COMM_STATE.chat||[];
   const last = items.length ? items[items.length-1].ts : Date.now();
   notifSetSeenChat(last);
-  NOTIF_STATE.chatUnread = 0;
-  notifPaintBadge();
+  notifRefresh();
 }
 /* Marcar una conversación DM como vista */
 function notifMarkDmSeen(other){
   const items = COMM_STATE.dmItems||[];
   const last = items.length ? items[items.length-1].ts : Date.now();
   notifSetSeenDm(other, last);
-  // recalcular dmUnread suavemente
   notifRefresh();
 }
 
