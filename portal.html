@@ -1185,8 +1185,9 @@ function missionsFor(u){
     {id:"m_download", icon:"📥", title:"Descarga tu carta de compromiso", cta:"Ir a la carta", page:"carta", done: !!u.commitmentDownloaded || !!u.commitmentSigned},
     {id:"m_terms",    icon:"✅", title:"Acepta los términos del programa", cta:"Aceptar términos", page:"carta", done: !!u.termsAccepted},
     {id:"m_signed",   icon:"✍️", title:"Sube tu carta firmada", cta:"Subir carta", page:"carta", done: !!u.commitmentSigned},
-    {id:"m_brand",    icon:"🎨", title:"Conoce el manual de marca", cta:"Ver manual", page:"marca", done: !!localStorage.getItem('vp-visit-marca-'+u.email)},
     {id:"m_resources",icon:"📚", title:"Revisa los recursos del reto", cta:"Ver recursos", page:"recursos", done: !!localStorage.getItem('vp-visit-recursos-'+u.email)},
+    {id:"m_platzi",   icon:"🎓", title:"Abre tu cuenta Platzi con tu correo de inscripción", cta:"Abrir cuenta Platzi", page:"recursos", done: !!u.platziAccountReady},
+    {id:"m_brand",    icon:"🎨", title:"Conoce el manual de marca", cta:"Ver manual", page:"marca", done: !!localStorage.getItem('vp-visit-marca-'+u.email)},
     {id:"m_week1",    icon:"🌱", title:"Sube tu Semana 1 (Sistema de prompts profesional)", cta:"Ir a Semana 1", page:"avances", done: weeks>=1},
     {id:"m_week2",    icon:"⚡", title:"Sube tu Semana 2 (Productividad con Copilot)", cta:"Ir a Semana 2", page:"avances", done: weeks>=2},
     {id:"m_week3",    icon:"🤖", title:"Sube tu Semana 3 (Agente de IA no-code)", cta:"Ir a Semana 3", page:"avances", done: weeks>=3},
@@ -2181,10 +2182,38 @@ function downloadCommitmentLetter(){
 function renderRecursos(main){
   markVisit('recursos');
   const cfg = DB.config;
+  const u = (SESSION.activeRole==='participant') ? DB.users[SESSION.email] : null;
+  const platziReady = !!(u && u.platziAccountReady);
+  const platziTs = (u && u.platziAccountReady && u.platziAccountReady.ts) || null;
+
+  const platziAccountBlock = u ? `
+    <div class="card" style="border-left:4px solid ${platziReady?'var(--vp-green)':'var(--vp-amber)'};${platziReady?'':'background:linear-gradient(135deg,rgba(245,158,11,.07),rgba(245,158,11,.02))'}">
+      <div style="display:flex;align-items:flex-start;gap:.75rem;flex-wrap:wrap">
+        <div style="font-size:1.8rem;line-height:1">🎓</div>
+        <div style="flex:1;min-width:240px">
+          <h3 style="margin:0 0 .25rem">${platziReady?'Tu cuenta Platzi está lista':'Antes de empezar · abre tu cuenta Platzi'}</h3>
+          <p class="muted" style="margin:0">Usa <strong style="color:var(--vp-navy)">exactamente el mismo correo</strong> con el que te inscribiste al reto: así Vepagos puede activarte la suscripción y los premios sin trabas.</p>
+          <div style="margin-top:.7rem;padding:.55rem .8rem;background:#fff;border:1.5px dashed var(--vp-line);border-radius:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92rem;color:var(--vp-navy);word-break:break-all">${escapeHTML(u.email)}</div>
+          ${platziReady
+            ? `<p class="muted" style="margin:.7rem 0 0;font-size:.85rem">✓ Confirmaste que tu cuenta está lista ${platziTs?'el '+fmtDate(platziTs):''}.</p>`
+            : `<p class="muted" style="margin:.7rem 0 0;font-size:.85rem">⚠️ Si ya tienes Platzi con otro correo: o creas una nueva con este, o le pides al admin del reto cambiar tu correo de inscripción.</p>`}
+        </div>
+      </div>
+      <div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap">
+        ${platziReady
+          ? `<button class="btn btn--ghost btn--sm" onclick="unmarkPlatziAccount()">Marcar como pendiente</button>
+             <a class="btn btn--ghost btn--sm" href="https://platzi.com/login/" target="_blank" rel="noopener">Entrar a Platzi ↗</a>`
+          : `<a class="btn btn--primary btn--sm" href="https://platzi.com/registro/" target="_blank" rel="noopener">Crear cuenta en Platzi ↗</a>
+             <button class="btn btn--ghost btn--sm" onclick="markPlatziAccount()">Ya la abrí con este correo ✓</button>`}
+      </div>
+    </div>` : '';
+
   main.innerHTML = `
     <h1 class="page-title">Recursos del reto</h1>
     <p class="page-sub">Todo lo que necesitas en un solo lugar: cómo entrar, qué cuentas abrir, planes Platzi, marca y calendario.</p>
     ${SESSION.activeRole==='admin'?'<p class="muted">Para editar estos recursos, ve a <button class="btn btn--ghost btn--sm" onclick="goto(\'a-recursos\')">Editar recursos</button>.</p>':''}
+
+    ${platziAccountBlock}
 
     <div class="card" style="background:linear-gradient(135deg,rgba(0,206,124,.08),rgba(0,31,96,.04))">
       <h3>📘 Dos planes Platzi para este reto</h3>
@@ -2210,6 +2239,25 @@ function renderRecursos(main){
       </div>
     `).join("")}
   `;
+}
+
+function markPlatziAccount(){
+  const u = DB.users[SESSION.email];
+  if(!u) return;
+  u.platziAccountReady = { ts: Date.now(), self: true };
+  saveDB();
+  toast("¡Cuenta Platzi confirmada! 🎓");
+  confetti();
+  goto("recursos");
+}
+function unmarkPlatziAccount(){
+  const u = DB.users[SESSION.email];
+  if(!u) return;
+  if(!confirm("¿Marcar tu cuenta Platzi como pendiente otra vez?")) return;
+  u.platziAccountReady = null;
+  saveDB();
+  toast("Cuenta Platzi marcada como pendiente");
+  goto("recursos");
 }
 
 function renderCuenta(main, isFirst){

@@ -264,6 +264,19 @@
       },
       {
         emoji: '🎓',
+        title: 'Lo primero: abre tu cuenta Platzi',
+        body:
+          '<p>Arriba ves una <strong>tarjeta destacada</strong> con tu correo de inscripción. ' +
+          'Es uno de los retos cumplir esta tarea: <strong>abrir tu cuenta Platzi con ese mismo correo</strong>.</p>' +
+          '<p>¿Por qué importa? Así Vepagos te activa la suscripción y los premios sin trabas.</p>' +
+          '<ul>' +
+            '<li><strong>"Crear cuenta en Platzi ↗"</strong> — te lleva a registrarte.</li>' +
+            '<li><strong>"Ya la abrí con este correo ✓"</strong> — márcalo cuando termines.</li>' +
+          '</ul>' +
+          '<p class="vp-wiz-tip">Si ya tienes Platzi con otro correo: crea una nueva con el de inscripción o pídele al admin que te cambie el correo.</p>'
+      },
+      {
+        emoji: '💳',
         title: '2 planes Platzi que cubre Vepagos',
         body:
           '<p>Arriba de todo verás dos tarjetas:</p>' +
