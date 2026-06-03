@@ -33,6 +33,14 @@
   status = 200
   force = true
 
+# Alias para la función de comunidad (chat público + DMs · store "reto-ia-community")
+# NUNCA toca el store "reto-ia-portal" de usuarios. Append-only.
+[[redirects]]
+  from = "/api/community"
+  to = "/.netlify/functions/community"
+  status = 200
+  force = true
+
 [[headers]]
   for = "/*"
   [headers.values]

@@ -2058,8 +2058,11 @@ var COMM_STATE = {
   chatLoadedAt: 0,
   dmOther: '',               // email del participante en el panel DM
   dmItems: [],
+  dmLoadedFor: '',           // para qué "other" ya cargamos los DMs
   inbox: [],
-  pollTimer: null
+  inboxLoadedAt: 0,
+  pollTimer: null,
+  drafts: { chat: '', dm: {} } // borradores preservados entre re-renders
 };
 
 async function commLoadChat(){
@@ -2075,6 +2078,7 @@ async function commLoadInbox(me){
     const r = await fetch(COMM_API+'?kind=inbox&me='+encodeURIComponent(me), {cache:'no-store'});
     const j = await r.json();
     COMM_STATE.inbox = Array.isArray(j.items) ? j.items : [];
+    COMM_STATE.inboxLoadedAt = Date.now();
   }catch(e){}
 }
 async function commLoadDM(me, other){
@@ -2082,6 +2086,7 @@ async function commLoadDM(me, other){
     const r = await fetch(COMM_API+'?kind=dm&a='+encodeURIComponent(me)+'&b='+encodeURIComponent(other), {cache:'no-store'});
     const j = await r.json();
     COMM_STATE.dmItems = Array.isArray(j.items) ? j.items : [];
+    COMM_STATE.dmLoadedFor = String(other||'').toLowerCase();
   }catch(e){}
 }
 async function commPostChat(me, name, text){
@@ -2127,7 +2132,32 @@ function commStartPolling(me){
 function commRerender(){
   const main = document.getElementById('main-content');
   if(!main || CURRENT_PAGE!=='comunidad') return;
+  // Preservar lo que el usuario está escribiendo antes de redibujar
+  commSaveDrafts();
   renderComunidad(main);
+  // Reponer el borrador después del redibujo
+  commRestoreDrafts();
+}
+
+function commSaveDrafts(){
+  const c = document.getElementById('comm-chat-input');
+  if(c) COMM_STATE.drafts.chat = c.value || '';
+  const d = document.getElementById('comm-dm-input');
+  if(d && COMM_STATE.dmOther){
+    COMM_STATE.drafts.dm[COMM_STATE.dmOther] = d.value || '';
+  }
+}
+function commRestoreDrafts(){
+  // Después de un setTimeout 0 para asegurar que el textarea ya está en el DOM
+  setTimeout(()=>{
+    const c = document.getElementById('comm-chat-input');
+    if(c && COMM_STATE.drafts.chat) c.value = COMM_STATE.drafts.chat;
+    const d = document.getElementById('comm-dm-input');
+    if(d && COMM_STATE.dmOther){
+      const v = COMM_STATE.drafts.dm[COMM_STATE.dmOther];
+      if(v) d.value = v;
+    }
+  }, 0);
 }
 
 function commProjectSnippet(u){
@@ -2152,10 +2182,11 @@ function renderComunidad(main){
   const total = pr.ranking.length;
   const tab = COMM_STATE.tab;
 
-  // Cargas iniciales en background
+  // Cargas iniciales en background — usar flags "loadedAt"/"loadedFor"
+  // para NO disparar fetch+rerender en bucle cuando la respuesta venga vacía.
   if(tab==='chat' && !COMM_STATE.chatLoadedAt){ commLoadChat().then(commRerender); }
-  if(tab==='dm'  && !COMM_STATE.inbox.length){ commLoadInbox(me).then(commRerender); }
-  if(tab==='dm'  && COMM_STATE.dmOther && !COMM_STATE.dmItems.length){
+  if(tab==='dm'  && !COMM_STATE.inboxLoadedAt){ commLoadInbox(me).then(commRerender); }
+  if(tab==='dm'  && COMM_STATE.dmOther && COMM_STATE.dmLoadedFor !== String(COMM_STATE.dmOther).toLowerCase()){
     commLoadDM(me, COMM_STATE.dmOther).then(commRerender);
   }
   commStartPolling(me);
@@ -2205,7 +2236,9 @@ function commOpenDM(other){
   COMM_STATE.tab = 'dm';
   COMM_STATE.dmOther = other;
   COMM_STATE.dmItems = [];
+  COMM_STATE.dmLoadedFor = ''; // forzar fetch del nuevo hilo
   const me = SESSION.email;
+  commRerender(); // pinta la UI ya con el "Aún no han intercambiado…"
   commLoadDM(me, other).then(()=>{
     commRerender();
     notifMarkDmSeen(other);
@@ -2479,6 +2512,7 @@ async function commSendChat(){
   ta.disabled = false;
   if(!r || !r.ok){ toast('No pudimos enviar tu mensaje. Reintenta.','err'); return; }
   ta.value = '';
+  COMM_STATE.drafts.chat = '';
   await commLoadChat();
   commRerender();
   // Scroll al final
@@ -2567,6 +2601,7 @@ async function commSendDM(){
   ta.disabled = false;
   if(!r || !r.ok){ toast('No pudimos enviar el mensaje.','err'); return; }
   ta.value = '';
+  if(COMM_STATE.drafts.dm) delete COMM_STATE.drafts.dm[other];
   await commLoadDM(me, other);
   await commLoadInbox(me);
   commRerender();
