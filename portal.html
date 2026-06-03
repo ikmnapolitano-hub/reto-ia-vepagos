@@ -3545,31 +3545,97 @@ function sendCampaign(cId){
   if(!c.subject){toast('Pon un asunto');return;}
   // Estrategia: mailto con BCC. Algunos clientes truncan en ~2000 chars de URL, así que dividimos en lotes.
   const BATCH = 30;
-  let i = 0;
   // Para envío con variables: si el cuerpo usa {{nombre}}, mejor enviar uno-por-uno.
   const hasVars = /\{\{(nombre|correo|area|gerente)\}\}/.test(c.body||"");
+  const subject = encodeURIComponent(c.subject);
+  // Construimos una cola de "tareas" (1 mailto por entrada).
+  // OJO: los navegadores bloquean window.open() en loop desde un solo click — solo abren el primero.
+  // Por eso pintamos un modal con un botón por tarea: cada click del usuario es un gesto independiente
+  // y el navegador sí deja abrir el cliente de correo.
+  let queue = [];
   if(hasVars){
-    if(!confirm(`Este email usa variables personalizadas. Se abrirá tu cliente de correo ${rcpts.length} veces (uno por persona). ¿Continuar?`)) return;
-    rcpts.forEach(u=>{
-      const body = encodeURIComponent(renderBody(c.body, c.link, u));
-      const subject = encodeURIComponent(c.subject);
-      window.open(`mailto:${u.email}?subject=${subject}&body=${body}`,"_blank");
-    });
+    queue = rcpts.map(u=>({
+      label: u.name || u.email,
+      sub: u.email,
+      href: `mailto:${u.email}?subject=${subject}&body=${encodeURIComponent(renderBody(c.body, c.link, u))}`
+    }));
   } else {
-    const subject = encodeURIComponent(c.subject);
     const body = encodeURIComponent(renderBody(c.body, c.link, {}));
-    while(i<rcpts.length){
-      const chunk = rcpts.slice(i,i+BATCH).map(u=>u.email).join(",");
-      window.open(`mailto:?bcc=${chunk}&subject=${subject}&body=${body}`,"_blank");
-      i += BATCH;
+    for(let i=0; i<rcpts.length; i+=BATCH){
+      const chunk = rcpts.slice(i, i+BATCH);
+      const preview = chunk.map(u=>u.email).slice(0,3).join(", ") + (chunk.length>3 ? `… (+${chunk.length-3} más)` : "");
+      queue.push({
+        label: `Lote ${Math.floor(i/BATCH)+1} de ${Math.ceil(rcpts.length/BATCH)} · ${chunk.length} destinatarios`,
+        sub: preview,
+        href: `mailto:?bcc=${chunk.map(u=>u.email).join(",")}&subject=${subject}&body=${body}`
+      });
     }
   }
-  // Marcar como enviada y loguear en Netlify Forms
-  c.status='sent';c.sentAt=Date.now();c.sentTo=rcpts.map(u=>u.email);
+
+  // Si hay solo 1 entrada, abrimos directo (todavía estamos dentro del click del usuario).
+  if(queue.length === 1){
+    window.open(queue[0].href, "_blank");
+    finalizeCampaign(c, rcpts);
+    return;
+  }
+  // Si hay varias, abrimos el modal donde el usuario hace click por fila.
+  openCampaignSendModal(c, rcpts, queue);
+}
+
+function finalizeCampaign(c, rcpts){
+  c.status='sent'; c.sentAt=Date.now(); c.sentTo=rcpts.map(u=>u.email);
   saveDB();
   sendNetlifyForm('campaign-log',{asunto:c.subject, destinatarios:c.sentTo.join(", "), enviada_por: DB.users[SESSION.email].name, fecha:new Date().toLocaleString('es-VE'), cuerpo:c.body+(c.link?"\n\n"+c.link:"")});
-  toast('Email abierto en tu cliente · marcado como enviado');
+  toast('Campaña marcada como enviada');
   goto('a-marketing');
+}
+
+function openCampaignSendModal(c, rcpts, queue){
+  const id = 'cmp-send-modal';
+  document.getElementById(id)?.remove();
+  const wrap = document.createElement('div');
+  wrap.id = id;
+  wrap.className = 'modal';
+  wrap.onclick = (e)=>{ if(e.target===wrap) wrap.remove(); };
+  const rows = queue.map((q,i)=>`
+    <div class="cmp-send-row" data-idx="${i}" style="display:flex;align-items:center;gap:.6rem;padding:.55rem .25rem;border-bottom:1px solid #eef0f5">
+      <span class="cmp-send-mark" style="width:1.2rem;display:inline-block;color:#00ce7c;font-weight:700;text-align:center">·</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:.92rem">${escapeHTML(q.label)}</div>
+        <div class="muted" style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(q.sub)}</div>
+      </div>
+      <a class="btn btn--primary btn--sm" href="${escapeAttr(q.href)}" target="_blank" rel="noopener" onclick="markCmpRowSent(this)">Abrir ▶</a>
+    </div>
+  `).join("");
+  wrap.innerHTML = `
+    <div class="modal-card" style="max-width:640px">
+      <h3 style="margin:0 0 .35rem">Abrir ${queue.length} ${queue.length===1?'email':'emails'}</h3>
+      <p class="muted" style="margin:0 0 .9rem;font-size:.85rem">Tu navegador bloquea abrir varios correos a la vez automáticamente. Hacé clic en <strong>Abrir ▶</strong> de cada fila — se abrirá en tu cliente de correo y solo te queda darle Enviar. Cuando termines todos, presioná <strong>Marcar como enviada</strong>.</p>
+      <div id="cmp-send-list" style="max-height:50vh;overflow-y:auto;border:1px solid #eef0f5;border-radius:8px;padding:.25rem .6rem;margin-bottom:.9rem">
+        ${rows}
+      </div>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn btn--ghost btn--sm" onclick="document.getElementById('${id}').remove()">Cancelar</button>
+        <button class="btn btn--primary btn--sm" onclick="confirmCampaignSent('${c.id}')">Marcar como enviada</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+}
+
+function markCmpRowSent(a){
+  const row = a.closest('.cmp-send-row');
+  if(!row) return;
+  const mark = row.querySelector('.cmp-send-mark');
+  if(mark) mark.textContent = '✓';
+  row.style.opacity = '.55';
+}
+
+function confirmCampaignSent(cId){
+  const c = DB.campaigns.find(x=>x.id===cId);
+  document.getElementById('cmp-send-modal')?.remove();
+  if(!c) return;
+  finalizeCampaign(c, recipientsFor(c));
 }
 /* Aviso de campañas programadas que ya llegó la fecha */
 function checkScheduledCampaigns(){
