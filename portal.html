@@ -690,6 +690,7 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
         <button class="navitem" data-page="a-recursos" onclick="goto('a-recursos')"><span class="ico">▸</span>Editar recursos</button>
         <button class="navitem" data-page="a-criterios" onclick="goto('a-criterios')"><span class="ico">▸</span>Criterios de evaluación</button>
         <button class="navitem" data-page="a-config" onclick="goto('a-config')"><span class="ico">▸</span>Configuración del reto</button>
+        <button class="navitem" data-page="a-diag" onclick="goto('a-diag')"><span class="ico">▸</span>Diagnóstico de almacenamiento</button>
         <div class="navsection">Cuenta</div>
         <button class="navitem" data-page="cuenta" onclick="goto('cuenta')"><span class="ico">▸</span>Mi cuenta</button>
       </div>
@@ -1500,6 +1501,7 @@ function goto(page){
     case "a-recursos": renderAdminRecursos(main); break;
     case "a-criterios": renderAdminCriterios(main); break;
     case "a-config": renderAdminConfig(main); break;
+    case "a-diag": renderAdminDiagnostico(main); break;
   }
   applyRoleUI(); // refrescar FAB/pill cada navegación
   // Cerrar drawer móvil al navegar
@@ -3720,6 +3722,226 @@ function doResolveHelp(email, helpId){
   document.querySelector('#help-modal .btn--primary').textContent='Solicitar ayuda';
   goto(CURRENT_PAGE);
 }
+/* ========== DIAGNÓSTICO DE ALMACENAMIENTO (admin) ==========
+   Vista para verificar que la migración a Netlify Blobs funciona,
+   ver quién todavía no ha re-subido sus archivos legacy, y pingear
+   el endpoint /api/upload. */
+
+function diagCollectStats(){
+  const users = Object.values(DB.users||{});
+  let totalUsers = users.length;
+  let usersWithCarta = 0, usersCartaLegacy = 0, usersCartaNew = 0;
+  let totalFiles = 0, newFiles = 0, legacyFiles = 0;
+  const pendientesCarta = [];
+  const pendientesAvances = [];
+
+  users.forEach(u=>{
+    // Carta
+    if(u.commitmentSigned){
+      usersWithCarta++;
+      if(u.commitmentSigned.url || u.commitmentSigned.path){
+        usersCartaNew++;
+      }else{
+        usersCartaLegacy++;
+        pendientesCarta.push(u);
+      }
+    }
+    // Solution files
+    (u.solutionFiles||[]).forEach(f=>{
+      totalFiles++;
+      if(f && (f.url||f.path)) newFiles++;
+      else if(f && f.legacy){ legacyFiles++; }
+    });
+    // Progress files (5 semanas)
+    let semanasLegacy = [];
+    Object.entries(u.progress||{}).forEach(([n,p])=>{
+      (p && p.files ? p.files : []).forEach(f=>{
+        totalFiles++;
+        if(f && (f.url||f.path)) newFiles++;
+        else if(f && f.legacy){
+          legacyFiles++;
+          if(!semanasLegacy.includes(n)) semanasLegacy.push(n);
+        }
+      });
+    });
+    if(semanasLegacy.length){
+      pendientesAvances.push({u, semanas: semanasLegacy});
+    }
+  });
+
+  return {totalUsers, usersWithCarta, usersCartaNew, usersCartaLegacy,
+          totalFiles, newFiles, legacyFiles,
+          pendientesCarta, pendientesAvances};
+}
+
+async function diagPing(){
+  const out = document.getElementById('diag-ping-out');
+  if(!out) return;
+  out.innerHTML = '<span class="muted">⟳ Pingeando /api/upload…</span>';
+  const t0 = Date.now();
+  try{
+    // GET sin path debe responder 400 missing_path → señal de que la función está viva
+    const r = await fetch('/api/upload', {method:'GET', cache:'no-store'});
+    const ms = Date.now() - t0;
+    if(r.status === 400 || r.status === 405){
+      out.innerHTML = `<span style="color:var(--vp-green);font-weight:600">✓ Endpoint vivo</span> <span class="muted">(HTTP ${r.status} en ${ms}ms)</span>`;
+    }else if(r.status === 404){
+      out.innerHTML = `<span style="color:var(--vp-red);font-weight:600">✗ Endpoint no desplegado</span> <span class="muted">(404 — falta deploy o redirect en netlify.toml)</span>`;
+    }else if(r.status >= 500){
+      let detail = '';
+      try{ const j = await r.json(); detail = j.error || j.detail || ''; }catch(e){}
+      out.innerHTML = `<span style="color:var(--vp-red);font-weight:600">✗ Error de servidor</span> <span class="muted">(HTTP ${r.status} · ${escapeHTML(detail)})</span>`;
+    }else{
+      out.innerHTML = `<span style="color:var(--vp-amber);font-weight:600">⚠ Respuesta inesperada</span> <span class="muted">(HTTP ${r.status} en ${ms}ms)</span>`;
+    }
+  }catch(e){
+    out.innerHTML = `<span style="color:var(--vp-red);font-weight:600">✗ Red caída o CORS</span> <span class="muted">${escapeHTML(e.message||String(e))}</span>`;
+  }
+}
+
+async function diagUploadTest(){
+  const out = document.getElementById('diag-upload-out');
+  if(!out) return;
+  out.innerHTML = '<span class="muted">⟳ Subiendo PDF de prueba…</span>';
+  try{
+    // Mini-PDF válido de 1 página en blanco
+    const pdfStr = '%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 144]>>endobj\nxref\n0 4\n0000000000 65535 f\n0000000010 00000 n\n0000000053 00000 n\n0000000102 00000 n\ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n149\n%%EOF';
+    const blob = new Blob([pdfStr], {type:'application/pdf'});
+    const file = new File([blob], 'diagnostico-test.pdf', {type:'application/pdf'});
+    const meta = await uploadFileToBlobs(file, `diag/${SESSION.email}`);
+    out.innerHTML = `<span style="color:var(--vp-green);font-weight:600">✓ Upload exitoso</span><br>
+      <span class="muted">path: <code>${escapeHTML(meta.path)}</code><br>
+      url: <a href="${escapeAttr(meta.url)}" target="_blank" rel="noopener">${escapeHTML(meta.url)}</a></span><br>
+      <button class="btn btn--ghost btn--sm" style="margin-top:.4rem" onclick="diagDeleteTest('${escapeAttr(meta.path)}')">Borrar este archivo de prueba</button>`;
+  }catch(e){
+    out.innerHTML = `<span style="color:var(--vp-red);font-weight:600">✗ Falló</span> <span class="muted">${escapeHTML(e.message||String(e))}</span>`;
+  }
+}
+
+async function diagDeleteTest(path){
+  await deleteFileFromBlobs(path);
+  document.getElementById('diag-upload-out').innerHTML = '<span class="muted">Archivo de prueba borrado.</span>';
+}
+
+function diagLocalStorageSize(){
+  try{
+    const raw = localStorage.getItem(LS_KEY) || '';
+    return raw.length; // 1 char ≈ 1 byte para JSON ASCII
+  }catch(e){ return 0; }
+}
+
+function renderAdminDiagnostico(main){
+  const s = diagCollectStats();
+  const lsBytes = diagLocalStorageSize();
+  const lsKB = (lsBytes/1024).toFixed(1);
+  const lsPct = Math.min(100, Math.round((lsBytes/5242880)*100));
+  const lsColor = lsBytes > 4194304 ? 'var(--vp-red)' : (lsBytes > 2097152 ? 'var(--vp-amber)' : 'var(--vp-green)');
+
+  main.innerHTML = `
+    <h1 class="page-title">Diagnóstico de almacenamiento</h1>
+    <p class="page-sub">Verifica que la migración a Netlify Blobs esté funcionando y revisa quién todavía no ha re-subido sus archivos.</p>
+
+    <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:1rem">
+      <div class="card">
+        <div class="muted" style="font-size:.85rem">Participantes</div>
+        <div style="font-size:2rem;font-weight:700">${s.totalUsers}</div>
+      </div>
+      <div class="card">
+        <div class="muted" style="font-size:.85rem">Archivos migrados (nuevo)</div>
+        <div style="font-size:2rem;font-weight:700;color:var(--vp-green)">${s.newFiles}</div>
+      </div>
+      <div class="card">
+        <div class="muted" style="font-size:.85rem">Archivos legacy (re-subir)</div>
+        <div style="font-size:2rem;font-weight:700;color:${s.legacyFiles>0?'var(--vp-amber)':'var(--vp-text-soft)'}">${s.legacyFiles}</div>
+      </div>
+      <div class="card">
+        <div class="muted" style="font-size:.85rem">Cartas firmadas (nuevo / legacy)</div>
+        <div style="font-size:1.5rem;font-weight:700">
+          <span style="color:var(--vp-green)">${s.usersCartaNew}</span>
+          <span class="muted" style="font-size:1rem"> / </span>
+          <span style="color:${s.usersCartaLegacy>0?'var(--vp-amber)':'var(--vp-text-soft)'}">${s.usersCartaLegacy}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>1. Salud del endpoint</h3>
+      <p class="muted">Hace un GET a <code>/api/upload</code> para verificar que la Function está desplegada y respondiendo.</p>
+      <button class="btn btn--primary btn--sm" onclick="diagPing()">Pingear /api/upload</button>
+      <div id="diag-ping-out" style="margin-top:.5rem">—</div>
+    </div>
+
+    <div class="card">
+      <h3>2. Test de upload end-to-end</h3>
+      <p class="muted">Sube un PDF mínimo de prueba a Netlify Blobs (bajo <code>diag/${escapeHTML(SESSION.email)}</code>), te muestra el URL servido y te deja borrarlo. Es la prueba más confiable de que todo el flujo funciona.</p>
+      <button class="btn btn--primary btn--sm" onclick="diagUploadTest()">Probar subida</button>
+      <div id="diag-upload-out" style="margin-top:.5rem">—</div>
+    </div>
+
+    <div class="card">
+      <h3>3. Tamaño del localStorage</h3>
+      <p class="muted">Antes del fix esto pasaba de 5 MB y rompía. Debería quedarse muy por debajo.</p>
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <div style="flex:1;height:14px;background:var(--vp-bg-soft);border-radius:7px;overflow:hidden">
+          <div style="width:${lsPct}%;height:100%;background:${lsColor};transition:width .3s"></div>
+        </div>
+        <div style="font-weight:600;color:${lsColor}">${lsKB} KB <span class="muted" style="font-weight:400">/ ~5120 KB (${lsPct}%)</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>4. Pendientes: carta de compromiso (${s.pendientesCarta.length})</h3>
+      ${s.pendientesCarta.length === 0
+        ? '<p class="muted">Nadie con carta legacy. Todas las cartas están migradas o pendientes de primera subida.</p>'
+        : `<p class="muted">Estos participantes tenían carta firmada en el sistema viejo y deben re-subirla:</p>
+           <div style="max-height:280px;overflow:auto">
+             ${s.pendientesCarta.map(u=>`<div class="uploaded">
+               <div><strong>${escapeHTML(u.name||'—')}</strong><div class="meta">${escapeHTML(u.email)} · ${escapeHTML(u.area||'')}</div></div>
+               <button class="btn btn--ghost btn--sm" onclick="CURRENT_DETAIL_EMAIL='${escapeAttr(u.email)}';goto('a-detalle')">Ver ficha</button>
+             </div>`).join('')}
+           </div>`}
+    </div>
+
+    <div class="card">
+      <h3>5. Pendientes: avances semanales (${s.pendientesAvances.length})</h3>
+      ${s.pendientesAvances.length === 0
+        ? '<p class="muted">Nadie con avances legacy.</p>'
+        : `<p class="muted">Estos participantes tienen archivos de avances en formato viejo que ya no se pueden descargar:</p>
+           <div style="max-height:280px;overflow:auto">
+             ${s.pendientesAvances.map(x=>`<div class="uploaded">
+               <div><strong>${escapeHTML(x.u.name||'—')}</strong>
+                 <div class="meta">${escapeHTML(x.u.email)} · Semanas afectadas: <strong>${x.semanas.join(', ')}</strong></div>
+               </div>
+               <button class="btn btn--ghost btn--sm" onclick="CURRENT_DETAIL_EMAIL='${escapeAttr(x.u.email)}';goto('a-detalle')">Ver ficha</button>
+             </div>`).join('')}
+           </div>`}
+    </div>
+
+    <div class="card">
+      <h3>6. Acciones útiles</h3>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn--ghost btn--sm" onclick="goto('a-diag')">⟳ Refrescar stats</button>
+        <button class="btn btn--ghost btn--sm" onclick="diagCopyPendientesEmails()">📋 Copiar emails pendientes</button>
+      </div>
+      <p class="muted" style="margin-top:.6rem;font-size:.85rem">El botón "Copiar emails" te pega los correos de quienes tienen carta o avances legacy, listos para pegar en un email masivo de aviso.</p>
+    </div>
+  `;
+}
+
+function diagCopyPendientesEmails(){
+  const s = diagCollectStats();
+  const set = new Set();
+  s.pendientesCarta.forEach(u=>set.add(u.email));
+  s.pendientesAvances.forEach(x=>set.add(x.u.email));
+  const list = Array.from(set).join(', ');
+  if(!list){ toast("No hay pendientes ✓"); return; }
+  navigator.clipboard.writeText(list).then(
+    ()=>toast(`✓ ${set.size} email${set.size>1?'s':''} copiado${set.size>1?'s':''} al portapapeles`),
+    ()=>toast("⚠ No se pudo copiar — los emails están en consola")
+  );
+  console.log('Pendientes:', list);
+}
+
 function renderAdminConfig(main){
   const cfg = DB.config;
   main.innerHTML = `
