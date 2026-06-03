@@ -319,93 +319,106 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
 .feed-item .meta .when{color:var(--vp-text-soft);font-size:.72rem;font-family:var(--fd);text-transform:uppercase;letter-spacing:.06em}
 
 /* =========================================================
-   MOBILE — Portal optimizado para celular
-   - Hamburguesa + drawer lateral
-   - Bottom tab nav (5 atajos)
-   - Inputs 16px+ (sin zoom iOS)
-   - Tablas → scroll horizontal con sombra de borde
-   - Modales tipo bottom-sheet
-   - Touch targets ≥ 44px
+   MOBILE — Portal rediseñado v2 (clean + funcional)
+   Topbar fijo 56px · drawer · bottom tab nav SVG · sheets
    ========================================================= */
 
+.topbar-left{display:flex;align-items:center;gap:.75rem;min-width:0;flex:1}
+.topbar-logo{height:30px;width:auto;flex-shrink:0}
+.topbar-sep{opacity:.5;font-size:1.2rem;flex-shrink:0}
+.topbar-title{font-family:var(--fd);letter-spacing:.04em;text-transform:uppercase;font-size:.95rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-user-text{text-align:right;min-width:0}
+.tb-user-text .user-name{font-weight:600;font-size:.9rem;color:#fff}
+.tb-user-text .user-area{font-size:.72rem;color:rgba(255,255,255,.65)}
+.tb-logout{display:inline-flex;align-items:center;gap:.4rem}
+.tb-logout-icon{display:none}
+
 /* Hamburger button (oculta en desktop) */
-.mobile-menu-btn{display:none;background:transparent;border:none;padding:.5rem;cursor:pointer;flex-direction:column;justify-content:center;gap:5px;width:40px;height:40px;border-radius:8px}
-.mobile-menu-btn:hover{background:rgba(255,255,255,.08)}
-.mobile-menu-btn span{display:block;width:22px;height:2.5px;background:#fff;border-radius:2px;transition:transform .25s,opacity .2s}
+.mobile-menu-btn{display:none;background:transparent;border:none;padding:0;cursor:pointer;flex-direction:column;justify-content:center;align-items:center;gap:5px;width:40px;height:40px;border-radius:10px;flex-shrink:0;transition:background .15s}
+.mobile-menu-btn:active{background:rgba(255,255,255,.12)}
+.mobile-menu-btn span{display:block;width:20px;height:2px;background:#fff;border-radius:2px;transition:transform .25s,opacity .2s}
 .mobile-menu-btn.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
 .mobile-menu-btn.open span:nth-child(2){opacity:0}
-.mobile-menu-btn.open span:nth-child(3){transform:translateY(-8px) rotate(-45deg)}
+.mobile-menu-btn.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
 
 .sidebar-backdrop{position:fixed;inset:0;background:rgba(0,31,96,.55);backdrop-filter:blur(3px);z-index:48;opacity:0;pointer-events:none;transition:opacity .25s}
 .sidebar-backdrop.show{opacity:1;pointer-events:auto}
 
 /* Bottom tab nav (oculto en desktop) */
 .mobile-bottom-nav{display:none}
-.mob-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:.4rem .15rem .55rem;background:transparent;border:none;color:var(--vp-text-soft);cursor:pointer;min-height:56px;position:relative;border-radius:0}
-.mob-tab-i{font-size:1.4rem;line-height:1;position:relative;display:inline-block}
-.mob-tab-l{font-family:var(--fd);font-size:.65rem;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+.mob-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:.45rem .2rem .55rem;background:transparent;border:none;color:var(--vp-text-soft);cursor:pointer;min-height:58px;position:relative;-webkit-tap-highlight-color:transparent;transition:color .12s}
+.mob-tab:active{background:rgba(0,31,96,.04)}
+.mob-tab-i{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;line-height:1;position:relative}
+.mob-tab-i svg{width:24px;height:24px;display:block}
+.mob-tab-l{font-family:var(--fd);font-size:.66rem;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
 .mob-tab.active{color:var(--vp-navy)}
-.mob-tab.active::before{content:"";position:absolute;top:0;left:18%;right:18%;height:3px;background:var(--vp-green);border-radius:0 0 4px 4px}
-.mob-tab-badge{position:absolute;top:-4px;right:-10px;background:var(--vp-red);color:#fff;font-family:var(--fd);font-size:.6rem;font-weight:700;min-width:16px;height:16px;border-radius:999px;padding:0 4px;display:grid;place-items:center;line-height:1;border:1.5px solid #fff}
+.mob-tab.active .mob-tab-i svg{stroke:var(--vp-navy)}
+.mob-tab.active::before{content:"";position:absolute;top:0;left:24%;right:24%;height:3px;background:var(--vp-green);border-radius:0 0 4px 4px}
+.mob-tab-badge{position:absolute;top:-5px;right:-9px;background:var(--vp-red);color:#fff;font-family:var(--fd);font-size:.6rem;font-weight:700;min-width:16px;height:16px;border-radius:999px;padding:0 4px;display:grid;place-items:center;line-height:1;border:1.5px solid #fff;box-shadow:0 1px 3px rgba(220,38,38,.4)}
 
 @media(max-width:900px){
-  /* === TOPBAR compacto === */
+  /* === TOPBAR: 56px fijo, sin wrap nunca === */
+  .topbar{padding:0 .85rem;gap:.5rem;height:56px;min-height:56px;flex-wrap:nowrap;overflow:hidden}
+  .topbar-logo{height:24px}
+  .topbar-left{gap:.65rem}
   .mobile-menu-btn{display:flex}
-  .topbar{padding:.55rem .8rem;gap:.5rem}
-  .topbar img{height:24px}
-  .topbar-sep{display:none}
-  .topbar-title{font-size:.78rem!important;letter-spacing:.03em!important;font-family:var(--fd);text-transform:uppercase;color:rgba(255,255,255,.92)}
-  .topbar .user{gap:.5rem}
-  .topbar .user > div:first-child{display:none} /* esconder nombre largo */
-  .topbar .user-role{padding:.18rem .45rem;font-size:.62rem;letter-spacing:.08em}
-  #sync-badge{display:none}  /* libera espacio: ya aparece en cuenta/inicio */
-  .topbar .user button{padding:.35rem .65rem;font-size:.7rem}
+  .tb-desktop-only{display:none!important}
+  .topbar .user{gap:.5rem;flex-shrink:0;align-items:center}
+  .topbar .user-role{padding:.22rem .55rem;font-size:.6rem;letter-spacing:.08em;line-height:1.3;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis}
+  .topbar .tb-logout{padding:0;width:38px;height:38px;justify-content:center;border:none;background:rgba(255,255,255,.08);border-radius:10px}
+  .topbar .tb-logout:active{background:rgba(255,255,255,.18)}
+  .topbar .tb-logout-text{display:none}
+  .topbar .tb-logout-icon{display:block;color:#fff}
 
   /* === SIDEBAR como drawer === */
-  .layout{grid-template-columns:1fr;min-height:calc(100vh - 50px)}
+  .layout{grid-template-columns:1fr;min-height:calc(100vh - 56px)}
   .sidebar{
-    position:fixed;top:50px;bottom:0;left:0;width:84vw;max-width:320px;
-    height:calc(100vh - 50px);background:#fff;z-index:49;
-    padding:1rem .85rem 6rem;
+    position:fixed;top:56px;bottom:0;left:0;width:86vw;max-width:340px;
+    height:calc(100vh - 56px);background:#fff;z-index:49;
+    padding:1rem .9rem 6rem;
     transform:translateX(-105%);
     transition:transform .28s cubic-bezier(.4,0,.2,1);
     box-shadow:8px 0 28px rgba(0,31,96,.18);
     overflow-y:auto;-webkit-overflow-scrolling:touch;
   }
-  .sidebar-backdrop{top:50px}
+  .sidebar-backdrop{top:56px}
   .sidebar.open{transform:translateX(0)}
-  .navitem{padding:.85rem 1rem;font-size:1rem;min-height:48px;border-radius:10px}
-  .navsection{font-size:.7rem;padding:.85rem .9rem .35rem}
+  .navitem{padding:.9rem 1rem;font-size:.98rem;min-height:48px;border-radius:10px;font-weight:500}
+  .navitem .ico{font-size:.95rem}
+  .navsection{font-size:.7rem;padding:1rem .9rem .35rem;color:var(--vp-text-soft)}
 
   /* === MAIN — más padding bajo (espacio para bottom nav) === */
-  .main{padding:1rem .85rem 5.5rem}
-  .page-title{font-size:1.45rem;line-height:1.15}
-  .page-sub{font-size:.92rem;margin-bottom:1.1rem}
+  .main{padding:1.1rem .85rem 5.75rem}
+  .page-title{font-size:1.55rem;line-height:1.18;font-weight:700;letter-spacing:.005em;margin-bottom:.25rem}
+  .page-sub{font-size:.92rem;line-height:1.45;margin-bottom:1.25rem;color:var(--vp-text-soft)}
 
   /* === BOTTOM NAV visible === */
   .mobile-bottom-nav{
     display:flex;align-items:stretch;justify-content:space-around;
     position:fixed;bottom:0;left:0;right:0;
-    background:#fff;border-top:1px solid var(--vp-line);
-    box-shadow:0 -4px 20px rgba(0,31,96,.08);
+    background:rgba(255,255,255,.96);
+    backdrop-filter:saturate(160%) blur(14px);
+    -webkit-backdrop-filter:saturate(160%) blur(14px);
+    border-top:1px solid var(--vp-line);
+    box-shadow:0 -2px 14px rgba(0,31,96,.06);
     z-index:47;
     padding-bottom:env(safe-area-inset-bottom);
   }
 
   /* === CARDS más aireadas === */
-  .card{padding:1rem 1.05rem;border-radius:14px;margin-bottom:.85rem}
+  .card{padding:1.05rem 1.1rem;border-radius:14px;margin-bottom:.85rem}
   .card h3{font-size:1rem}
   .card h4{font-size:.82rem}
 
-  /* === KPIs 2 columnas === */
-  .grid.g2,.grid.g3{grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem}
-  .kpi{padding:.85rem .9rem}
-  .kpi .value{font-size:1.35rem}
-  .kpi .label{font-size:.65rem;letter-spacing:.08em}
+  /* === KPIs 2 columnas con mejor jerarquía === */
+  .grid.g2,.grid.g3{grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
+  .kpi{padding:.95rem 1rem;border-radius:14px}
+  .kpi .value{font-size:1.5rem;line-height:1.05}
+  .kpi .label{font-size:.65rem;letter-spacing:.1em;margin-bottom:.4rem}
 
   /* === Inputs 16px (sin zoom iOS) + touch ≥44px === */
   input,textarea,select{font-size:16px!important}
-  .field input,.field textarea,.field select{padding:.85rem .9rem;border-radius:12px}
+  .field input,.field textarea,.field select{padding:.9rem 1rem;border-radius:12px}
   .field label{font-size:.75rem}
 
   /* === Botones más grandes === */
@@ -413,45 +426,35 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
   .btn--sm{padding:.6rem 1rem;font-size:.78rem;min-height:42px}
   .btn--block{width:100%}
 
-  /* === Tabs scroll horizontal con sombra === */
+  /* === Tabs scroll horizontal === */
   .tabs{gap:0;margin:0 -.85rem 1rem;padding:0 .85rem;border-bottom-width:1px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
   .tab{padding:.7rem .85rem;font-size:.78rem;flex-shrink:0;scroll-snap-align:start}
 
-  /* === TABLAS — scroll horizontal con tarjeta contenedora === */
-  /* Envolvemos cada table en su card; el card hace el scroll */
+  /* === TABLAS — scroll horizontal contenido en card === */
   .card{overflow-x:auto;-webkit-overflow-scrolling:touch}
   table{font-size:.85rem;min-width:max-content;border-collapse:collapse}
-  th,td{padding:.55rem .6rem;white-space:nowrap}
-  /* Hint visual: gradiente de borde indica scroll */
-  .card:has(table){background:#fff linear-gradient(to right,transparent 92%,rgba(0,31,96,.06)) no-repeat right top/40px 100%}
+  th,td{padding:.6rem .7rem;white-space:nowrap}
 
   /* === FORMS / Search bars / Toolbar === */
-  .toolbar{gap:.4rem;margin-bottom:.85rem}
-  .search{min-width:140px;padding:.7rem .85rem;border-radius:12px;font-size:16px}
+  .toolbar{gap:.45rem;margin-bottom:.95rem}
+  .search{min-width:140px;padding:.75rem .9rem;border-radius:12px;font-size:16px}
 
   /* === MODALES tipo bottom-sheet === */
   .modal{align-items:flex-end;padding:0}
   .modal-card{
-    border-radius:18px 18px 0 0;max-width:100%;width:100%;
+    border-radius:20px 20px 0 0;max-width:100%;width:100%;
     padding:1.25rem 1.15rem 1.5rem;max-height:92vh;overflow-y:auto;
     animation:slideUp .28s cubic-bezier(.4,0,.2,1);
     padding-bottom:calc(1.5rem + env(safe-area-inset-bottom));
   }
-  .modal-card::before{
-    content:"";display:block;width:42px;height:4px;background:#cfd6e3;
-    border-radius:2px;margin:-.25rem auto 1rem;
-  }
+  .modal-card::before{content:"";display:block;width:42px;height:4px;background:#cfd6e3;border-radius:2px;margin:-.25rem auto 1rem}
   @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
   .modal-card .field input,.modal-card .field textarea{font-size:16px!important}
 
-  /* === HELP FAB — más arriba para no chocar con bottom nav === */
-  #help-fab{
-    bottom:calc(70px + env(safe-area-inset-bottom));
-    right:.85rem;padding:.7rem 1rem;font-size:.78rem;
-    border-radius:999px;box-shadow:0 8px 22px rgba(220,38,38,.4);
-  }
+  /* === HELP FAB — sobre bottom nav === */
+  #help-fab{bottom:calc(74px + env(safe-area-inset-bottom));right:.85rem;padding:.7rem 1rem;font-size:.78rem;border-radius:999px;box-shadow:0 8px 22px rgba(220,38,38,.4)}
 
-  /* === Login más cómodo === */
+  /* === Login === */
   .login-wrap{padding:1rem;align-items:flex-start;padding-top:6vh}
   .login-card{border-radius:18px}
   .login-head{padding:1.2rem 1.5rem}
@@ -470,7 +473,7 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
   .rank-hero .gap-val{font-size:.95rem}
 
   /* === Podio === */
-  .podium{gap:.25rem;min-height:120px}
+  .podium{gap:.3rem;min-height:120px}
   .podium-step{width:64px}
   .podium-step .avatar{width:40px;height:40px;font-size:.95rem}
   .podium-step .name{font-size:.68rem;min-height:2em}
@@ -480,14 +483,14 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
   .podium-step.second .base{height:44px}
   .podium-step.third .base{height:28px}
 
-  /* === Badges grid compacto === */
+  /* === Badges grid === */
   .badges-wrap{grid-template-columns:repeat(3,1fr);gap:.45rem}
   .badge-tile{padding:.65rem .35rem;border-radius:12px}
   .badge-tile .icon{font-size:1.45rem;margin-bottom:.15rem}
   .badge-tile .name{font-size:.65rem;letter-spacing:.02em}
   .badge-tile .desc{display:none}
 
-  /* === Streak más liviano === */
+  /* === Streak === */
   .streak-card{padding:.75rem 1rem;border-radius:12px}
   .streak-card .flame{font-size:1.9rem}
   .streak-card .num{font-size:1.4rem}
@@ -498,25 +501,25 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
   .criteria-row .score-input{justify-self:start}
 
   /* === Status banner === */
-  .status-banner{padding:.85rem 1rem;font-size:.92rem}
+  .status-banner{padding:.95rem 1.1rem;font-size:.92rem;border-radius:12px}
   .status-banner h3{font-size:1rem}
 
   /* === Approve bar === */
-  .approve-bar{padding:.75rem 1rem;flex-direction:column;align-items:flex-start;gap:.5rem}
+  .approve-bar{padding:.85rem 1rem;flex-direction:column;align-items:flex-start;gap:.5rem;border-radius:12px}
   .approve-bar strong{font-size:.95rem}
 
-  /* === Enroll grid (status pasos) en 2 cols === */
+  /* === Enroll grid === */
   .enroll-grid{grid-template-columns:1fr 1fr;gap:.4rem}
-  .enroll-step{padding:.55rem .7rem;font-size:.8rem}
+  .enroll-step{padding:.55rem .7rem;font-size:.8rem;border-radius:10px}
 
   /* === Feedback === */
   .feedback-thread{max-height:none}
-  .feedback-item{padding:.7rem .85rem;font-size:.9rem}
+  .feedback-item{padding:.75rem .9rem;font-size:.9rem;border-radius:10px}
   .fb-images img{width:72px;height:72px}
   .fb-attach-bar{gap:.35rem}
   .fb-attach-bar .btn-attach{font-size:.78rem;padding:.5rem .7rem}
 
-  /* === Logo grid y swatches === */
+  /* === Logo grid === */
   .logo-grid{grid-template-columns:repeat(2,1fr);gap:.5rem}
   .logo-tile img{height:75px;padding:.5rem}
 
@@ -525,25 +528,25 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
   .compare-row .lbl{flex:1 0 100%;font-size:.78rem}
   .compare-row .bar{flex:1}
 
-  /* === Chart wrappers === */
+  /* === Charts === */
   .chart-card{padding:.85rem .85rem}
   .chart-wrap{height:200px}
 
-  /* === Split → stack === */
+  /* === Split === */
   .split{grid-template-columns:1fr}
 
-  /* === Bloqueamos overflow horizontal y le damos peso al cuerpo === */
+  /* === Globals === */
   body{overflow-x:hidden;font-size:15.5px}
 }
 
 /* Pantallas muy chicas (iPhone SE etc.) */
 @media(max-width:380px){
-  .topbar-title{display:none}
+  .topbar-logo{height:22px}
   .topbar .user-role{display:none}
   .grid.g2,.grid.g3{grid-template-columns:1fr;gap:.55rem}
   .badges-wrap{grid-template-columns:repeat(2,1fr)}
   .mob-tab-l{font-size:.6rem}
-  .mob-tab-i{font-size:1.25rem}
+  .mob-tab-i svg{width:22px;height:22px}
   .rank-hero .pos-num{font-size:2.8rem}
   .podium-step{width:56px}
   .podium-step .avatar{width:34px;height:34px;font-size:.85rem}
@@ -619,22 +622,25 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
 <!-- ============= APP ============= -->
 <div id="app-view" class="hidden">
   <div class="topbar">
-    <div style="display:flex;align-items:center;gap:.75rem">
+    <div class="topbar-left">
       <button id="mobile-menu-btn" class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Abrir menú">
         <span></span><span></span><span></span>
       </button>
-      <img src="assets/vepagos-logo-white.png" alt="Vepagos" style="height:26px;width:auto"/>
-      <span class="topbar-sep">|</span>
-      <strong class="topbar-title">Portal Reto IA</strong>
+      <img src="assets/vepagos-logo-white.png" alt="Vepagos" class="topbar-logo"/>
+      <span class="topbar-sep tb-desktop-only">|</span>
+      <strong class="topbar-title tb-desktop-only">Portal Reto IA</strong>
     </div>
     <div class="user">
-      <div style="text-align:right">
+      <div class="tb-user-text tb-desktop-only">
         <div class="user-name" id="tb-name"></div>
-        <div style="font-size:.72rem;color:rgba(255,255,255,.65)" id="tb-area"></div>
+        <div class="user-area" id="tb-area"></div>
       </div>
       <span class="user-role" id="tb-role">PARTICIPANTE</span>
-      <span id="sync-badge" onclick="diagnoseSync()" style="font-family:var(--fd);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,206,124,.85);cursor:pointer" title="Clic para diagnosticar">● Sincronizando…</span>
-      <button onclick="logout()">Salir</button>
+      <span id="sync-badge" class="tb-desktop-only" onclick="diagnoseSync()" title="Clic para diagnosticar">● Sincronizando…</span>
+      <button class="tb-logout" onclick="logout()" aria-label="Salir">
+        <span class="tb-logout-text">Salir</span>
+        <svg class="tb-logout-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
     </div>
   </div>
 
@@ -1298,6 +1304,20 @@ function applyRoleUI(){
 }
 function defaultPage(){return SESSION.activeRole==="admin"?"a-tablero":SESSION.activeRole==="manager"?"g-equipo":"resumen";}
 
+/* Iconos SVG inline mono-trazo (24x24, currentColor) — todos del mismo peso visual */
+const NAV_ICONS = {
+  home:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2z"/></svg>',
+  chart:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="7 14 11 10 14 13 21 6"/></svg>',
+  chat:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7A8.38 8.38 0 0 1 3 11.5 8.5 8.5 0 0 1 12 3a8.38 8.38 0 0 1 9 8.5z"/></svg>',
+  book:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5H6.5A2.5 2.5 0 0 0 4 19.5z"/></svg>',
+  menu:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>',
+  users:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  user:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  dash:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
+  alert:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17.01"/></svg>',
+  calendar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+};
+
 function renderBottomNav(){
   const el = document.getElementById("mobile-bottom-nav");
   if(!el) return;
@@ -1308,35 +1328,36 @@ function renderBottomNav(){
     const lastRead = u.lastFeedbackRead || 0;
     const unread = (u.feedback||[]).filter(f=>f.ts>lastRead).length;
     items = [
-      {p:"resumen",   i:"🏠", l:"Inicio"},
-      {p:"avances",   i:"📈", l:"Avances"},
-      {p:"feedback",  i:"💬", l:"Feedback", n:unread},
-      {p:"recursos",  i:"📚", l:"Recursos"},
-      {p:"_menu",     i:"☰",  l:"Más"},
+      {p:"resumen",   i:"home",  l:"Inicio"},
+      {p:"avances",   i:"chart", l:"Avances"},
+      {p:"feedback",  i:"chat",  l:"Feedback", n:unread},
+      {p:"recursos",  i:"book",  l:"Recursos"},
+      {p:"_menu",     i:"menu",  l:"Más"},
     ];
   } else if(r==="manager"){
     items = [
-      {p:"g-equipo",  i:"👥", l:"Equipo"},
-      {p:"recursos",  i:"📚", l:"Recursos"},
-      {p:"cuenta",    i:"👤", l:"Cuenta"},
-      {p:"_menu",     i:"☰",  l:"Más"},
+      {p:"g-equipo",  i:"users", l:"Equipo"},
+      {p:"recursos",  i:"book",  l:"Recursos"},
+      {p:"cuenta",    i:"user",  l:"Cuenta"},
+      {p:"_menu",     i:"menu",  l:"Más"},
     ];
   } else if(r==="admin"){
     const n = Object.values(DB.users).filter(hasActiveHelp).length;
     items = [
-      {p:"a-tablero",      i:"📊", l:"Tablero"},
-      {p:"a-participantes",i:"👥", l:"Personas"},
-      {p:"a-ayuda",        i:"🚨", l:"Ayuda", n:n},
-      {p:"a-resumen",      i:"📅", l:"Hoy"},
-      {p:"_menu",          i:"☰",  l:"Más"},
+      {p:"a-tablero",      i:"dash",     l:"Tablero"},
+      {p:"a-participantes",i:"users",    l:"Personas"},
+      {p:"a-ayuda",        i:"alert",    l:"Ayuda", n:n},
+      {p:"a-resumen",      i:"calendar", l:"Hoy"},
+      {p:"_menu",          i:"menu",     l:"Más"},
     ];
   }
   el.innerHTML = items.map(it=>{
     const badge = (it.n && it.n>0) ? `<span class="mob-tab-badge">${it.n>99?"99+":it.n}</span>` : "";
+    const icon = `<span class="mob-tab-i">${NAV_ICONS[it.i]||""}${badge}</span>`;
     if(it.p==="_menu"){
-      return `<button class="mob-tab" onclick="toggleSidebar(true)" aria-label="${it.l}"><span class="mob-tab-i">${it.i}</span><span class="mob-tab-l">${it.l}</span></button>`;
+      return `<button class="mob-tab" onclick="toggleSidebar(true)" aria-label="${it.l}">${icon}<span class="mob-tab-l">${it.l}</span></button>`;
     }
-    return `<button class="mob-tab${CURRENT_PAGE===it.p?' active':''}" data-page="${it.p}" onclick="goto('${it.p}')" aria-label="${it.l}"><span class="mob-tab-i">${it.i}${badge}</span><span class="mob-tab-l">${it.l}</span></button>`;
+    return `<button class="mob-tab${CURRENT_PAGE===it.p?' active':''}" data-page="${it.p}" onclick="goto('${it.p}')" aria-label="${it.l}">${icon}<span class="mob-tab-l">${it.l}</span></button>`;
   }).join("");
 }
 
