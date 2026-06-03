@@ -520,16 +520,64 @@ const MANAGER_EMAILS = ["odumont@vepagos.com","lperez@vepagos.com","ayvic23@gmai
 /* Admins (perfil administrador) */
 const ADMIN_EMAILS = ["ikmnapolitano@gmail.com","cmorales@vepagos.com"];
 
-/* Criterios de evaluación por defecto */
+/* Criterios de evaluación por defecto (rúbrica oficial Reto IA Vepagos)
+   Versión v2 (jun 2026): 4 criterios, cada uno con sub-items que el comité observa.
+   Si cambias IDs aquí, súbele el número de versión en CRITERIA_VERSION para forzar migración. */
+const CRITERIA_VERSION = 2;
 const DEFAULT_CRITERIA = [
-  {id:"normativa",name:"Cumplimiento de Normativa Interna",desc:"Respeta políticas Vepagos, manejo de datos y procesos.",weight:15},
-  {id:"descuento",name:"Cláusula de Descuento y Compromiso",desc:"Carta firmada, asistencia, entrega de avances en tiempo.",weight:10},
-  {id:"problema",name:"Definición del Problema",desc:"Claridad, impacto medible, alineado a operación real.",weight:10},
-  {id:"solucion",name:"Calidad de la Solución con IA",desc:"Uso correcto de herramientas, prompts, modelos y datos.",weight:20},
-  {id:"viabilidad",name:"Viabilidad e Implementación",desc:"Funciona, se puede desplegar, costo razonable.",weight:15},
-  {id:"impacto",name:"Impacto en Vepagos",desc:"Horas/hombre ahorradas, errores reducidos, $ recuperados.",weight:15},
-  {id:"presentacion",name:"Presentación Final",desc:"Demo clara, métricas, look & feel de marca.",weight:10},
-  {id:"marca",name:"Apego al Manual de Marca",desc:"Colores, tipografía, logos, tono Vepagos en entregables.",weight:5}
+  {
+    id:"impacto",
+    name:"Impacto",
+    desc:"¿Resuelve un problema real de Vepagos? Se mide con números: antes y después.",
+    weight:40,
+    subItems:[
+      "Problema concreto identificado (con dueño o área afectada, no genérico)",
+      "Métrica de negocio impactada (horas ahorradas, % de error reducido, $ recuperados, tiempo de ciclo, NPS)",
+      "Baseline vs. resultado medible (antes/después con número)",
+      "Alcance: usuarios o procesos beneficiados",
+      "Reversibilidad y riesgo: qué pasa si falla"
+    ]
+  },
+  {
+    id:"adopcion",
+    name:"Adopción",
+    desc:"¿La gente lo usa de verdad? No basta con que funcione, tiene que entrar al flujo.",
+    weight:30,
+    subItems:[
+      "Usuarios activos reales (no solo el creador)",
+      "Frecuencia de uso (diario, semanal)",
+      "Integrado al flujo existente (no requiere un proceso paralelo)",
+      "Documentación o handoff hecho",
+      "Feedback recogido del equipo usuario",
+      "Si el entregable es visible (UI, deck, pieza, comms): uso del manual de marca Vepagos"
+    ]
+  },
+  {
+    id:"avance",
+    name:"Avance",
+    desc:"¿Hubo progreso real durante el reto? Constancia + decisiones con lógica.",
+    weight:20,
+    subItems:[
+      "De idea a prototipo funcional",
+      "Iteraciones visibles (v1 → v2 con cambios justificados)",
+      "Bloqueos resueltos (no solo listados)",
+      "Decisiones técnicas con lógica (por qué este modelo, prompt, herramienta)",
+      "Participación activa: asistencia a sesiones, entregas en fechas, uso del portal",
+      "Interacción con el equipo (preguntas, feedback, ayuda a otros)"
+    ]
+  },
+  {
+    id:"demo",
+    name:"Demo",
+    desc:"¿Se entiende y convence en 2 minutos? La demo es donde se gana la venta interna.",
+    weight:10,
+    subItems:[
+      "Caso de uso claro en menos de 2 minutos",
+      "Antes/después mostrado en vivo",
+      "Limitaciones honestas declaradas",
+      "Próximos pasos concretos"
+    ]
+  }
 ];
 
 const SEMANAS = [
@@ -574,6 +622,18 @@ function loadDB(){
       // migración suave: asegurar campos nuevos
       if(!db.resources) db.resources = DEFAULT_RESOURCES;
       if(!db.config) db.config = DEFAULT_CONFIG;
+      // Migración de criterios: si la versión guardada es vieja, sobreescribir la rúbrica
+      // (los scores se limpian porque los IDs viejos ya no existen)
+      if((db.criteriaVersion||1) < CRITERIA_VERSION){
+        db.criteria = JSON.parse(JSON.stringify(DEFAULT_CRITERIA));
+        db.criteriaVersion = CRITERIA_VERSION;
+        Object.values(db.users||{}).forEach(u=>{
+          if(u.scores){
+            const valid = new Set(DEFAULT_CRITERIA.map(c=>c.id));
+            Object.keys(u.scores).forEach(k=>{ if(!valid.has(k)) delete u.scores[k]; });
+          }
+        });
+      }
       Object.values(db.users||{}).forEach(u=>{
         if(typeof u.termsAccepted==="undefined") u.termsAccepted=false;
         if(typeof u.termsAcceptedAt==="undefined") u.termsAcceptedAt=0;
@@ -621,7 +681,7 @@ function loadDB(){
     u.assignedProblem = u.problemas[0] || "";
     u.approvedNote = "Aprobado para participar. Ver problema asignado y comenzar Semana 1.";
   });
-  return {users, criteria: DEFAULT_CRITERIA, resources: DEFAULT_RESOURCES, config: DEFAULT_CONFIG, campaigns: []};
+  return {users, criteria: JSON.parse(JSON.stringify(DEFAULT_CRITERIA)), criteriaVersion: CRITERIA_VERSION, resources: DEFAULT_RESOURCES, config: DEFAULT_CONFIG, campaigns: []};
 }
 function saveDB(){
   localStorage.setItem(LS_KEY, JSON.stringify(DB));
@@ -677,6 +737,17 @@ async function pullRemote(){
         if(!DB.resources) DB.resources = DEFAULT_RESOURCES;
         if(!DB.config) DB.config = DEFAULT_CONFIG;
         if(!DB.campaigns) DB.campaigns = [];
+        // Migración de criterios (también al pull, porque el blob remoto puede traer la rúbrica vieja)
+        if((DB.criteriaVersion||1) < CRITERIA_VERSION){
+          DB.criteria = JSON.parse(JSON.stringify(DEFAULT_CRITERIA));
+          DB.criteriaVersion = CRITERIA_VERSION;
+          Object.values(DB.users).forEach(u=>{
+            if(u.scores){
+              const valid = new Set(DEFAULT_CRITERIA.map(c=>c.id));
+              Object.keys(u.scores).forEach(k=>{ if(!valid.has(k)) delete u.scores[k]; });
+            }
+          });
+        }
         Object.values(DB.users).forEach(u=>{
           if(typeof u.termsAccepted==="undefined") u.termsAccepted=false;
           if(!Array.isArray(u.helpHistory)) u.helpHistory=[];
@@ -2619,9 +2690,72 @@ function renderDetalle(main, email, viewerRole){
 function renderDetalleTab(tab, u, viewerRole){
   const box = document.getElementById("d-content");
   if(tab==="problema"){
+    // Estado de decisión sobre el reto
+    const dec = u.challengeDecision || "pending";
+    const decBadge = dec==="accepted"
+      ? '<span class="badge badge--green">✓ Reto aceptado</span>'
+      : dec==="rejected"
+        ? '<span class="badge badge--red">✗ Reto rechazado</span>'
+        : '<span class="badge badge--amber">⏳ Decisión pendiente</span>';
+    const decDate = u.decisionDate ? `<span class="muted" style="font-size:.78rem;margin-left:.5rem">${fmtDate(u.decisionDate)}</span>` : "";
+
+    // Bloque de solución propuesta
+    const solText = (u.solutionText||"").trim();
+    const solFiles = Array.isArray(u.solutionFiles) ? u.solutionFiles : [];
+    const lastSolFile = solFiles.length ? solFiles.slice().sort((a,b)=>b.ts-a.ts)[0] : null;
+    const hasSolution = !!(solText || solFiles.length);
+    let solBlock;
+    if(dec === "rejected"){
+      solBlock = `<div class="card" style="border-left:4px solid var(--vp-red)">
+        <h3 style="margin:0 0 .25rem">Solución propuesta por el participante</h3>
+        <p class="muted" style="margin:.2rem 0 .85rem">El participante rechazó este reto, por lo que no se espera solución para esta propuesta.</p>
+        <h4 style="margin:.5rem 0 .2rem">Motivo del rechazo</h4>
+        <p style="white-space:pre-wrap">${escapeHTML(u.rejectionReason||"(sin motivo registrado)")}</p>
+        <h4 style="margin:.85rem 0 .2rem">¿Quiere seguir participando con otro problema?</h4>
+        <p><strong>${u.rejectionWantsContinue===true?"Sí, quiere seguir participando":u.rejectionWantsContinue===false?"No, prefiere retirarse":"No respondió"}</strong></p>
+      </div>`;
+    } else if(dec === "pending"){
+      solBlock = `<div class="card" style="border-left:4px solid var(--vp-amber)">
+        <h3 style="margin:0 0 .25rem">Solución propuesta por el participante</h3>
+        <p class="muted" style="margin:0">El participante aún no ha decidido si acepta el reto, por lo que todavía no puede documentar su solución.</p>
+      </div>`;
+    } else {
+      solBlock = `<div class="card" style="border-left:4px solid var(--vp-green)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;flex-wrap:wrap">
+          <div>
+            <h3 style="margin:0 0 .15rem">Solución propuesta por el participante</h3>
+            <p class="muted" style="margin:0">Descripción narrativa + archivos de apoyo subidos desde "Mi problema".</p>
+          </div>
+          ${hasSolution?`<span class="badge badge--green">Con propuesta</span>`:`<span class="badge badge--gray">Sin propuesta aún</span>`}
+        </div>
+
+        <h4 style="margin:1rem 0 .3rem">Descripción de la solución</h4>
+        ${solText
+          ? `<div style="background:var(--vp-bg-soft);padding:.85rem 1rem;border-radius:8px;border-left:3px solid var(--vp-navy);white-space:pre-wrap;color:var(--vp-text-2);font-size:.93rem;line-height:1.55">${escapeHTML(solText)}</div>`
+          : `<p class="muted" style="margin:0">— el participante aún no escribió la descripción —</p>`}
+
+        <h4 style="margin:1rem 0 .3rem">Archivos de apoyo ${solFiles.length?`(${solFiles.length})`:""}</h4>
+        ${solFiles.length
+          ? solFiles.map(f=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · subido ${fmtDate(f.ts)}</div></div><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${f.data}">⬇ Descargar</a></div>`).join("")
+          : `<p class="muted" style="margin:0">— sin archivos adjuntos todavía —</p>`}
+
+        ${lastSolFile||solText
+          ? `<p class="muted" style="font-size:.78rem;margin:.85rem 0 0">Última actualización de archivos: ${lastSolFile?fmtDate(lastSolFile.ts):"—"}</p>`
+          : ""}
+      </div>`;
+    }
+
     box.innerHTML = `
-      <div class="card"><h3>Problema asignado</h3><p style="white-space:pre-wrap">${escapeHTML(u.assignedProblem||"—")}</p>
-      <h4 style="margin-top:1rem">Notas del comité</h4><p style="white-space:pre-wrap">${escapeHTML(u.approvedNote||"—")}</p></div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;flex-wrap:wrap">
+          <h3 style="margin:0">Problema asignado</h3>
+          <div>${decBadge}${decDate}</div>
+        </div>
+        <p style="white-space:pre-wrap;margin-top:.6rem">${escapeHTML(u.assignedProblem||"—")}</p>
+        <h4 style="margin-top:1rem">Notas del comité</h4>
+        <p style="white-space:pre-wrap">${escapeHTML(u.approvedNote||"—")}</p>
+      </div>
+      ${solBlock}
       <div class="card"><h3>Problemas que envió en la inscripción</h3>
         ${(u.problemas||[]).map((p,i)=>`<details ${i===0?'open':''}><summary>Problema ${i+1}</summary><p style="white-space:pre-wrap;color:var(--vp-text-2)">${escapeHTML(p)}</p></details>`).join("")||'<p class="muted">No envió problemas.</p>'}
       </div>`;
