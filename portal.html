@@ -128,6 +128,25 @@ tr:hover td{background:var(--vp-bg-soft)}
 .feedback-item{padding:.7rem .85rem;background:var(--vp-bg-soft);border-left:3px solid var(--vp-green);border-radius:6px;margin-bottom:.6rem;font-size:.88rem}
 .feedback-item .who{font-weight:700;color:var(--vp-navy)}
 .feedback-item .when{color:var(--vp-text-soft);font-size:.75rem;margin-left:.5rem}
+.feedback-item .text-body{margin-top:.3rem;white-space:pre-wrap;word-break:break-word}
+.feedback-item .text-body a{color:var(--vp-navy);text-decoration:underline;font-weight:600}
+.fb-images{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.55rem}
+.fb-images img{width:84px;height:84px;object-fit:cover;border-radius:6px;border:1px solid #d4dbe7;cursor:zoom-in;transition:transform .15s ease}
+.fb-images img:hover{transform:scale(1.04)}
+.fb-links{margin-top:.55rem;display:flex;flex-direction:column;gap:.25rem}
+.fb-links a{font-size:.82rem;color:var(--vp-navy);text-decoration:none;background:#fff;padding:.35rem .55rem;border-radius:5px;border:1px solid #d4dbe7;display:inline-flex;align-items:center;gap:.4rem;width:fit-content;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fb-links a:hover{border-color:var(--vp-green);background:var(--vp-bg-soft)}
+.fb-links a::before{content:"🔗";font-size:.8rem}
+.fb-attach-bar{display:flex;flex-wrap:wrap;gap:.5rem;margin:.5rem 0 .35rem;align-items:center}
+.fb-attach-bar .btn-attach{font-size:.82rem;padding:.45rem .8rem;background:#fff;border:1px dashed #b8c2d1;color:var(--vp-navy);border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:.35rem}
+.fb-attach-bar .btn-attach:hover{border-color:var(--vp-green);background:var(--vp-bg-soft)}
+.fb-attach-bar input[type=file]{display:none}
+.fb-preview{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem}
+.fb-preview .pv{position:relative;width:70px;height:70px;border-radius:6px;overflow:hidden;border:1px solid #d4dbe7;background:#f4f6fa}
+.fb-preview .pv img{width:100%;height:100%;object-fit:cover}
+.fb-preview .pv button{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;border:none;background:rgba(0,31,96,.85);color:#fff;font-size:.65rem;cursor:pointer;display:grid;place-items:center;line-height:1;padding:0}
+.fb-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:grid;place-items:center;z-index:9999;cursor:zoom-out;padding:2rem}
+.fb-lightbox img{max-width:100%;max-height:100%;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
 
 textarea{min-height:80px;resize:vertical}
 
@@ -1471,11 +1490,33 @@ function renderEvaluacion(main){
 }
 function renderFeedbackThread(u){
   if(!u.feedback.length) return '<p class="muted">Aún no hay comentarios. Suelen llegar después de cada entrega semanal.</p>';
-  return '<div class="feedback-thread">'+u.feedback.slice().reverse().map(f=>`
-    <div class="feedback-item">
+  return '<div class="feedback-thread">'+u.feedback.slice().reverse().map(f=>{
+    const imgs = (f.images||[]).map((im,idx)=>`<img src="${im.dataUrl}" alt="${escapeHTML(im.name||'imagen')}" onclick="openFbLightbox('${im.dataUrl}')"/>`).join("");
+    const links = (f.links||[]).map(l=>`<a href="${escapeAttr(l)}" target="_blank" rel="noopener">${escapeHTML(l)}</a>`).join("");
+    return `<div class="feedback-item">
       <div><span class="who">${escapeHTML(f.from)}</span><span class="when">${escapeHTML(f.role)} · ${fmtDate(f.ts)}</span></div>
-      <div style="margin-top:.3rem;white-space:pre-wrap">${escapeHTML(f.text)}</div>
-    </div>`).join("")+'</div>';
+      <div class="text-body">${linkifyText(f.text||"")}</div>
+      ${imgs?`<div class="fb-images">${imgs}</div>`:""}
+      ${links?`<div class="fb-links">${links}</div>`:""}
+    </div>`;
+  }).join("")+'</div>';
+}
+
+function linkifyText(txt){
+  const safe = escapeHTML(txt);
+  return safe.replace(/(https?:\/\/[^\s<]+)/g, url => `<a href="${url}" target="_blank" rel="noopener">${url}</a>`);
+}
+
+function escapeAttr(s){
+  return String(s||"").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+}
+
+function openFbLightbox(src){
+  const box = document.createElement('div');
+  box.className = 'fb-lightbox';
+  box.innerHTML = `<img src="${src}" alt=""/>`;
+  box.onclick = () => box.remove();
+  document.body.appendChild(box);
 }
 
 function renderMarca(main){
@@ -2226,9 +2267,17 @@ function renderDetalleTab(tab, u, viewerRole){
   if(tab==="feedback"){
     box.innerHTML = `<div class="card"><h3>Dejar feedback</h3>
       <div class="field"><label>Mensaje</label><textarea id="fb-text" placeholder="Lo que estás haciendo bien, lo que ajustaría, qué esperar para la próxima entrega…"></textarea></div>
-      <button class="btn btn--primary btn--sm" onclick="addFeedback('${u.email}','${viewerRole}')">Publicar feedback</button>
+      <div class="field"><label>Links de referencia <span class="muted" style="font-weight:400">(opcional, uno por línea)</span></label><textarea id="fb-links" style="min-height:60px" placeholder="https://figma.com/...&#10;https://ejemplo.com/inspiracion"></textarea></div>
+      <div class="fb-attach-bar">
+        <label class="btn-attach" for="fb-files">📎 Adjuntar imágenes</label>
+        <input type="file" id="fb-files" accept="image/*" multiple onchange="previewFbFiles()"/>
+        <span class="muted" style="font-size:.78rem">Se redimensionan a 1200px máx. para mantener el portal liviano.</span>
+      </div>
+      <div id="fb-preview" class="fb-preview"></div>
+      <button class="btn btn--primary btn--sm" style="margin-top:.6rem" onclick="addFeedback('${u.email}','${viewerRole}')">Publicar feedback</button>
     </div>
     <div class="card"><h3>Histórico</h3>${renderFeedbackThread(u)}</div>`;
+    window.__fbPendingImages = [];
   }
   if(tab==="admin"){
     box.innerHTML = `<div class="card"><h3>Estado y problema</h3>
@@ -2261,12 +2310,88 @@ function saveScores(email){
 }
 function addFeedback(email, viewerRole){
   const txt = document.getElementById("fb-text").value.trim();
-  if(!txt) return;
+  const linksRaw = (document.getElementById("fb-links")?.value || "").trim();
+  const images = (window.__fbPendingImages || []).slice();
+  const links = linksRaw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(s => /^https?:\/\//i.test(s) ? s : "https://"+s);
+  if(!txt && !images.length && !links.length){
+    toast("Escribe un mensaje o adjunta algo antes de publicar");
+    return;
+  }
   const me = DB.users[SESSION.email];
-  DB.users[email].feedback.push({from:me.name,role:viewerRole==="admin"?"Admin":"Gerente",text:txt,ts:Date.now()});
+  DB.users[email].feedback.push({
+    from: me.name,
+    role: viewerRole==="admin"?"Admin":"Gerente",
+    text: txt,
+    images,
+    links,
+    ts: Date.now()
+  });
+  window.__fbPendingImages = [];
   saveDB();toast("Feedback enviado");
   const active = document.querySelector("#d-tabs .tab.active");
   if(active) active.click();
+}
+
+async function previewFbFiles(){
+  const input = document.getElementById("fb-files");
+  const preview = document.getElementById("fb-preview");
+  if(!input || !preview) return;
+  const files = Array.from(input.files || []);
+  if(!files.length) return;
+  for(const file of files){
+    if(!file.type.startsWith("image/")) continue;
+    try{
+      const dataUrl = await compressImage(file, 1200, 0.82);
+      window.__fbPendingImages = window.__fbPendingImages || [];
+      window.__fbPendingImages.push({name:file.name, dataUrl});
+    }catch(e){ console.warn("No se pudo procesar", file.name, e); }
+  }
+  input.value = ""; // permitir re-seleccionar el mismo archivo
+  renderFbPreview();
+}
+
+function renderFbPreview(){
+  const preview = document.getElementById("fb-preview");
+  if(!preview) return;
+  const imgs = window.__fbPendingImages || [];
+  preview.innerHTML = imgs.map((im,idx)=>`
+    <div class="pv">
+      <img src="${im.dataUrl}" alt=""/>
+      <button type="button" title="Quitar" onclick="removeFbPending(${idx})">✕</button>
+    </div>`).join("");
+}
+
+function removeFbPending(idx){
+  (window.__fbPendingImages || []).splice(idx,1);
+  renderFbPreview();
+}
+
+function compressImage(file, maxDim=1200, quality=0.82){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let {width, height} = img;
+        if(width > maxDim || height > maxDim){
+          const scale = Math.min(maxDim/width, maxDim/height);
+          width = Math.round(width*scale);
+          height = Math.round(height*scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        // PNG si el original era PNG/transparente, si no JPEG comprimido
+        const isPng = /png|gif/i.test(file.type);
+        resolve(canvas.toDataURL(isPng ? "image/png" : "image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 function saveAdminUser(email){
   const u = DB.users[email];
