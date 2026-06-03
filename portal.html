@@ -101,6 +101,7 @@ input,textarea,select{font-family:inherit;font-size:14px}
 .grid{display:grid;gap:1rem}
 .g2{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
 .g3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
 
 .kpi{padding:1rem;background:#fff;border:1px solid var(--vp-line);border-radius:var(--r)}
 .kpi--click{cursor:pointer;transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease}
@@ -411,7 +412,7 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
   .card h4{font-size:.82rem}
 
   /* === KPIs 2 columnas con mejor jerarquía === */
-  .grid.g2,.grid.g3{grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
+  .grid.g2,.grid.g3,.grid.g4{grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
   .kpi{padding:.95rem 1rem;border-radius:14px}
   .kpi .value{font-size:1.5rem;line-height:1.05}
   .kpi .label{font-size:.65rem;letter-spacing:.1em;margin-bottom:.4rem}
@@ -543,7 +544,7 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
 @media(max-width:380px){
   .topbar-logo{height:22px}
   .topbar .user-role{display:none}
-  .grid.g2,.grid.g3{grid-template-columns:1fr;gap:.55rem}
+  .grid.g2,.grid.g3,.grid.g4{grid-template-columns:1fr;gap:.55rem}
   .badges-wrap{grid-template-columns:repeat(2,1fr)}
   .mob-tab-l{font-size:.6rem}
   .mob-tab-i svg{width:22px;height:22px}
@@ -2852,6 +2853,7 @@ var KPI_FILTERS = {
   'aceptaron':      {title:'Aceptaron el reto',        fn:u=>u.challengeDecision==='accepted'},
   'rechazo-otra':   {title:'Rechazaron · quieren otro problema', fn:u=>u.challengeDecision==='rejected' && u.rejectionWantsContinue===true},
   'rechazo-retiran':{title:'Rechazaron · se retiran del reto',   fn:u=>u.challengeDecision==='rejected' && u.rejectionWantsContinue===false},
+  'faltan-decidir': {title:'Faltan por decidir su participación', fn:u=>!u.challengeDecision || u.challengeDecision==='pending'},
   'puntaje':        {title:'Ranking por puntaje',      fn:_=>true, sort:(a,b)=>sumScore(b).total-sumScore(a).total}
 };
 function openKpiList(key){
@@ -2914,6 +2916,9 @@ function renderAdminTablero(main){
   const aceptaron       = all.filter(u=>u.challengeDecision==='accepted').length;
   const rechazoOtra     = all.filter(u=>u.challengeDecision==='rejected' && u.rejectionWantsContinue===true).length;
   const rechazoRetiran  = all.filter(u=>u.challengeDecision==='rejected' && u.rejectionWantsContinue===false).length;
+  const faltanDecidirList = all.filter(u=>!u.challengeDecision || u.challengeDecision==='pending')
+                               .sort((a,b)=>a.name.localeCompare(b.name));
+  const faltanDecidir   = faltanDecidirList.length;
 
   main.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
@@ -2960,7 +2965,7 @@ function renderAdminTablero(main){
 
     <!-- DECISIÓN DEL PARTICIPANTE SOBRE EL RETO -->
     <h3 style="margin:1.25rem 0 .5rem;font-family:var(--fd);letter-spacing:.02em">Decisión sobre el reto</h3>
-    <div class="grid g3">
+    <div class="grid g4">
       <div class="kpi kpi--click" onclick="openKpiList('aceptaron')" style="border-left:4px solid var(--vp-green)" title="Ver quiénes aceptaron el reto">
         <p class="label">Aceptaron el reto</p>
         <div class="value" style="color:var(--vp-green-deep)">${aceptaron}<span style="font-size:1rem;color:var(--vp-text-soft)">/${all.length}</span></div>
@@ -2973,7 +2978,32 @@ function renderAdminTablero(main){
         <p class="label">Rechazo · se retiran</p>
         <div class="value" style="color:var(--vp-red)">${rechazoRetiran}<span style="font-size:1rem;color:var(--vp-text-soft)">/${all.length}</span></div>
       </div>
+      <div class="kpi kpi--click" onclick="openKpiList('faltan-decidir')" style="border-left:4px solid var(--vp-navy)" title="Ver quiénes faltan por decidir">
+        <p class="label">Faltan por decidir</p>
+        <div class="value" style="color:var(--vp-navy)">${faltanDecidir}<span style="font-size:1rem;color:var(--vp-text-soft)">/${all.length}</span></div>
+      </div>
     </div>
+
+    ${faltanDecidir>0?`
+    <div class="card" style="margin-top:1rem;border-left:4px solid var(--vp-navy)">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
+        <h3 style="margin:0">Faltan por decidir su participación <span class="badge badge--amber" style="margin-left:.4rem">${faltanDecidir}</span></h3>
+        <button class="btn btn--ghost btn--sm" onclick="openKpiList('faltan-decidir')">Ver detalle →</button>
+      </div>
+      <p class="muted" style="margin:.35rem 0 .85rem">Aún no han indicado si aceptan o rechazan el reto. Considera enviar un recordatorio.</p>
+      <div class="grid g3">
+        ${faltanDecidirList.map(u=>{
+          const mgr = DB.users[u.manager]; const mgrName = mgr?mgr.name:(u.manager||"—");
+          return `<div class="enroll-step" style="cursor:pointer" onclick="viewDetail('${u.email}','a-detalle')">
+            <div><strong>${escapeHTML(u.name)}</strong><div class="muted" style="font-size:.85rem">${escapeHTML(u.area)} · Gerente: ${escapeHTML(mgrName)}</div><div class="muted" style="font-size:.8rem">${escapeHTML(u.email)}</div></div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>`:`
+    <div class="card" style="margin-top:1rem;border-left:4px solid var(--vp-green)">
+      <h3 style="margin:0">✓ Todos los participantes ya indicaron su decisión</h3>
+      <p class="muted" style="margin:.35rem 0 0">No hay decisiones pendientes.</p>
+    </div>`}
 
     <!-- CHARTS -->
     <div class="grid g2" style="margin-top:1rem">
@@ -3157,9 +3187,11 @@ function renderAdminParticipantes(main){
         <option value="rechazado">Rechazados</option>
       </select>
       <select class="role-pick" id="apf-accept" onchange="renderAdminTabla()">
-        <option value="">Aceptación del reto</option>
-        <option value="acepto">Aceptó el reto</option>
-        <option value="pendiente">Pendiente por indicar</option>
+        <option value="">Decisión del reto</option>
+        <option value="accepted">Aceptó el reto</option>
+        <option value="rejected-otro">Rechazó · quiere otro</option>
+        <option value="rejected-retira">Rechazó · se retira</option>
+        <option value="pending">Pendiente por indicar</option>
       </select>
       <select class="role-pick" id="apf-area" onchange="renderAdminTabla()">
         <option value="">Todas las áreas</option>
@@ -3170,9 +3202,20 @@ function renderAdminParticipantes(main){
   `;
   renderAdminTabla();
 }
-function acceptedChallenge(u){
-  // "Aceptó el reto" = subió carta firmada Y aceptó los términos
-  return !!u.commitmentSigned && !!u.termsAccepted;
+function decisionKey(u){
+  // Devuelve la decisión del participante sobre el reto.
+  // Estados posibles: 'accepted' | 'rejected-otro' | 'rejected-retira' | 'pending'
+  const d = u.challengeDecision;
+  if(d==='accepted') return 'accepted';
+  if(d==='rejected') return u.rejectionWantsContinue===true ? 'rejected-otro' : 'rejected-retira';
+  return 'pending';
+}
+function decisionBadge(u){
+  const k = decisionKey(u);
+  if(k==='accepted')        return '<span class="badge badge--green">Aceptó</span>';
+  if(k==='rejected-otro')   return '<span class="badge badge--amber">Rechazó · otro</span>';
+  if(k==='rejected-retira') return '<span class="badge badge--red">Rechazó · se retira</span>';
+  return '<span class="badge badge--gray">Pendiente</span>';
 }
 function renderAdminTabla(){
   const q = (document.getElementById("apf")?.value||"").toLowerCase();
@@ -3184,21 +3227,20 @@ function renderAdminTabla(){
     .filter(u=>!q || (u.name+" "+u.email+" "+u.area+" "+u.cargo).toLowerCase().includes(q))
     .filter(u=>!fs || u.status===fs)
     .filter(u=>!fa || u.area===fa)
-    .filter(u=>!fc || (fc==='acepto' ? acceptedChallenge(u) : !acceptedChallenge(u)))
+    .filter(u=>!fc || decisionKey(u)===fc)
     .sort((a,b)=>a.name.localeCompare(b.name));
-  const html = `<table><thead><tr><th>Participante</th><th>Área</th><th>Gerente</th><th>Estado</th><th>Aceptó reto</th><th>Ritmo</th><th>Avances</th><th>Carta</th><th>Términos</th><th>Puntaje</th><th></th></tr></thead><tbody>
+  const html = `<table><thead><tr><th>Participante</th><th>Área</th><th>Gerente</th><th>Estado</th><th>Decisión del reto</th><th>Ritmo</th><th>Avances</th><th>Carta</th><th>Términos</th><th>Puntaje</th><th></th></tr></thead><tbody>
     ${rows.map(u=>{
       const weeks = Object.values(u.progress).filter(p=>p.text||p.files.length).length;
       const sc = sumScore(u).total;
       const mgr = DB.users[u.manager]; const mgrName = mgr?mgr.name:(u.manager||"—");
       const pace = paceFor(u);
-      const accepted = acceptedChallenge(u);
       return `<tr class="${hasActiveHelp(u)?'help-active':''}">
         <td><strong>${escapeHTML(u.name)}</strong>${hasActiveHelp(u)?' <span class="badge badge--red">AYUDA</span>':''}<div class="muted">${escapeHTML(u.email)}</div></td>
         <td>${escapeHTML(u.area)}</td>
         <td>${escapeHTML(mgrName)}</td>
         <td><span class="badge ${u.status==='aprobado'?'badge--green':u.status==='rechazado'?'badge--red':'badge--amber'}">${u.status}</span></td>
-        <td>${accepted?'<span class="badge badge--green">Aceptó</span>':'<span class="badge badge--amber">Pendiente</span>'}</td>
+        <td>${decisionBadge(u)}</td>
         <td><span class="badge ${pace.cls}">${pace.label}</span></td>
         <td>${weeks}/5</td>
         <td>${u.commitmentSigned?'<span class="badge badge--green">Sí</span>':'<span class="badge badge--gray">No</span>'}</td>
