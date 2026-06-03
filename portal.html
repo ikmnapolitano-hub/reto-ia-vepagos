@@ -1740,20 +1740,38 @@ function renderEvaluacion(main){
   const u = DB.users[SESSION.email];
   main.innerHTML = `
     <h1 class="page-title">Items de evaluación</h1>
-    <p class="page-sub">Estos son los criterios con los que se calificará tu proyecto. Tu puntaje actual ya considera el feedback de los admins y gerentes.</p>
-    <div class="card">
-      <h3>Criterios (peso sobre 100)</h3>
-      ${DB.criteria.map(c=>{
-        const sc = u.scores[c.id]||0;
-        return `<div class="criteria-row">
-          <div><strong>${escapeHTML(c.name)}</strong><div class="muted">${escapeHTML(c.desc)}</div></div>
-          <div><span class="badge badge--navy">Peso ${c.weight}%</span></div>
-          <div style="text-align:right"><strong style="font-family:var(--fd);font-size:1.1rem">${sc.toFixed(1)}</strong><span class="muted"> / 10</span></div>
-        </div>`;
-      }).join("")}
-      <div style="margin-top:1rem;padding-top:.75rem;border-top:2px solid var(--vp-line);display:flex;justify-content:space-between;align-items:center">
-        <strong style="font-family:var(--fd);font-size:1.1rem;letter-spacing:.04em;text-transform:uppercase">Puntaje total</strong>
-        <strong style="font-family:var(--fd);font-size:1.5rem;color:var(--vp-green-deep)">${sumScore(u).total.toFixed(1)} / 100</strong>
+    <p class="page-sub">Cómo vas en la rúbrica. Tu puntaje en los 4 criterios. <strong>Recuerda: ganas por mejorar contra ti mismo, no contra los demás.</strong></p>
+    <div class="card" style="background:linear-gradient(135deg,#E5E9F2 0%,#F6F8FB 100%);border-left:4px solid var(--vp-green)">
+      <h3 style="margin-top:0">Filtro pragmático del jurado</h3>
+      <p style="margin:.3rem 0;color:var(--vp-text-2)">Cada item de la rúbrica responde a una pregunta: <em>¿cómo lo compruebo?</em> Si no se puede observar o medir, no cuenta. Llega a la demo con números, no con promesas.</p>
+      <p style="margin:.4rem 0 0;color:var(--vp-text-2)"><strong>Sobre el manual de marca:</strong> solo cuenta si tu entregable es visible (UI, deck, copy, pieza gráfica, comms). Si es backend, automatización interna o análisis puro, este sub-item no aplica.</p>
+    </div>
+    ${DB.criteria.map(c=>{
+      const sc = u.scores[c.id]||0;
+      const subs = Array.isArray(c.subItems) ? c.subItems : [];
+      return `<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+          <div style="flex:1;min-width:240px">
+            <h3 style="margin:0">${escapeHTML(c.name)} <span class="badge badge--navy" style="margin-left:.4rem">Peso ${c.weight}%</span></h3>
+            <p class="muted" style="margin:.3rem 0 0">${escapeHTML(c.desc)}</p>
+          </div>
+          <div style="text-align:right;min-width:120px">
+            <div style="font-family:var(--fd);font-size:1.6rem;color:var(--vp-green-deep);line-height:1">${sc.toFixed(1)}<span style="font-size:1rem;color:var(--vp-text-soft)"> / 10</span></div>
+            <div class="muted" style="font-size:.8rem">tu puntaje actual</div>
+          </div>
+        </div>
+        ${subs.length?`<div style="margin-top:.8rem;padding-top:.6rem;border-top:1px dashed var(--vp-line)">
+          <strong style="font-size:.85rem;color:var(--vp-navy);text-transform:uppercase;letter-spacing:.04em">Lo que el comité observa</strong>
+          <ul style="margin:.4rem 0 0;padding-left:1.2rem;color:var(--vp-text-2);line-height:1.5">
+            ${subs.map(s=>`<li>${escapeHTML(s)}</li>`).join("")}
+          </ul>
+        </div>`:""}
+      </div>`;
+    }).join("")}
+    <div class="card" style="background:var(--vp-navy);color:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+        <strong style="font-family:var(--fd);font-size:1.1rem;letter-spacing:.04em;text-transform:uppercase">Puntaje total ponderado</strong>
+        <strong style="font-family:var(--fd);font-size:1.8rem;color:#00CE7C">${sumScore(u).total.toFixed(1)} / 100</strong>
       </div>
     </div>
     <div class="card">
@@ -1822,7 +1840,7 @@ function renderMarca(main){
     <div class="card" style="background:linear-gradient(135deg,#E5E9F2 0%,#F6F8FB 100%);border-left:4px solid var(--vp-green)">
       <h3 style="margin-top:0">¿Qué es un manual de marca y por qué te importa?</h3>
       <p style="margin:.4rem 0;color:var(--vp-text-2)">Un <strong>manual de marca</strong> es el documento que define cómo se ve y cómo habla una empresa para que <em>siempre</em> se vea y suene igual: mismos colores, misma tipografía, mismo logo, mismo tono. Como un uniforme: cualquiera que vea un correo, una presentación, una pantalla o un volante reconoce de inmediato que es de Vepagos.</p>
-      <p style="margin:.4rem 0;color:var(--vp-text-2)">¿Por qué importa en el Reto? Porque todo lo que entregues (presentación, prototipo, video, documento) debe verse Vepagos. <strong>El look &amp; feel pesa en la evaluación final</strong> (5 pts). No tienes que ser diseñador: solo seguir las cuatro reglas de abajo.</p>
+      <p style="margin:.4rem 0;color:var(--vp-text-2)">¿Por qué importa en el Reto? Porque si tu entregable es visible (presentación, prototipo, video, documento, pieza de comms), <strong>el uso del manual de marca cuenta dentro del criterio de Adopción</strong>. Si tu entregable es backend, automatización interna o análisis puro, este sub-item no aplica. No tienes que ser diseñador: solo seguir las cuatro reglas de abajo.</p>
       <p style="margin:.4rem 0 0;color:var(--vp-text-2)"><strong>Las 4 reglas básicas:</strong></p>
       <ol style="margin:.3rem 0 0;padding-left:1.2rem;color:var(--vp-text-2)">
         <li><strong>Colores:</strong> usa solo los de la paleta (verde, navy, blanco y los grises suaves).</li>
@@ -2773,12 +2791,21 @@ function renderDetalleTab(tab, u, viewerRole){
   }
   if(tab==="evaluacion"){
     box.innerHTML = `<div class="card"><h3>Asignar puntaje (sobre 10 por criterio)</h3>
+      <p class="muted" style="margin:.2rem 0 .8rem">Cada criterio incluye los sub-items que el comité observa. Califica sobre 10; el peso se aplica automático.</p>
       ${DB.criteria.map(c=>{
         const v = u.scores[c.id]??"";
-        return `<div class="criteria-row">
-          <div><strong>${escapeHTML(c.name)}</strong><div class="muted">${escapeHTML(c.desc)}</div></div>
-          <div><span class="badge badge--navy">Peso ${c.weight}%</span></div>
-          <div class="score-input"><input type="number" min="0" max="10" step="0.1" id="sc-${c.id}" value="${v}"/><span class="muted">/ 10</span></div>
+        const subs = Array.isArray(c.subItems) ? c.subItems : [];
+        return `<div style="border-bottom:1px dashed var(--vp-line);padding:.7rem 0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+            <div style="flex:1;min-width:240px">
+              <strong>${escapeHTML(c.name)}</strong> <span class="badge badge--navy" style="margin-left:.3rem">Peso ${c.weight}%</span>
+              <div class="muted" style="margin-top:.2rem">${escapeHTML(c.desc)}</div>
+              ${subs.length?`<ul style="margin:.5rem 0 0;padding-left:1.1rem;color:var(--vp-text-2);font-size:.85rem;line-height:1.45">
+                ${subs.map(s=>`<li>${escapeHTML(s)}</li>`).join("")}
+              </ul>`:""}
+            </div>
+            <div class="score-input" style="min-width:120px"><input type="number" min="0" max="10" step="0.1" id="sc-${c.id}" value="${v}"/><span class="muted">/ 10</span></div>
+          </div>
         </div>`;
       }).join("")}
       <div style="margin-top:1rem;display:flex;gap:.5rem;align-items:center"><button class="btn btn--primary btn--sm" onclick="saveScores('${u.email}')">Guardar puntaje</button><span class="muted">Total ponderado actual: <strong>${sumScore(u).total.toFixed(1)}/100</strong></span></div>
@@ -2940,7 +2967,7 @@ function resetPass(email){
 function renderAdminCriterios(main){
   main.innerHTML = `
     <h1 class="page-title">Criterios de evaluación</h1>
-    <p class="page-sub">Ajusta nombres, descripciones y pesos. Los cambios se reflejan en participantes y gerentes.</p>
+    <p class="page-sub">Rúbrica oficial v2 (jun 2026): 4 criterios — Impacto 40, Adopción 30, Avance 20, Demo 10. Los sub-items que cada criterio observa están definidos en código (DEFAULT_CRITERIA) y se ven dentro de cada tarjeta abajo. Aquí puedes ajustar nombres, descripciones y pesos sin tocar los sub-items.</p>
     <div class="card" id="crit-box"></div>
     <div class="card"><h3>Resumen de pesos</h3><div id="crit-sum"></div></div>
   `;
@@ -2948,15 +2975,24 @@ function renderAdminCriterios(main){
 }
 function paintCriterios(){
   const box = document.getElementById("crit-box");
-  box.innerHTML = DB.criteria.map((c,i)=>`<div class="field" style="border-bottom:1px dashed var(--vp-line);padding-bottom:.75rem">
-    <div style="display:grid;grid-template-columns:1fr 1fr 100px auto;gap:.5rem;align-items:end">
-      <div><label>Nombre</label><input value="${escapeAttr(c.name)}" oninput="DB.criteria[${i}].name=this.value;saveDB()"/></div>
-      <div><label>Descripción</label><input value="${escapeAttr(c.desc)}" oninput="DB.criteria[${i}].desc=this.value;saveDB()"/></div>
-      <div><label>Peso %</label><input type="number" min="0" max="100" value="${c.weight}" oninput="DB.criteria[${i}].weight=parseFloat(this.value)||0;saveDB();paintSum()"/></div>
-      <button class="btn btn--danger btn--sm" onclick="if(confirm('¿Borrar criterio?')){DB.criteria.splice(${i},1);saveDB();paintCriterios()}">Quitar</button>
-    </div>
-  </div>`).join("");
-  box.innerHTML += `<button class="btn btn--ghost btn--sm" style="margin-top:.75rem" onclick="DB.criteria.push({id:'c'+Date.now(),name:'Nuevo criterio',desc:'',weight:5});saveDB();paintCriterios()">+ Añadir criterio</button>`;
+  box.innerHTML = DB.criteria.map((c,i)=>{
+    const subs = Array.isArray(c.subItems) ? c.subItems : [];
+    return `<div class="field" style="border-bottom:1px dashed var(--vp-line);padding-bottom:.75rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr 100px auto;gap:.5rem;align-items:end">
+        <div><label>Nombre</label><input value="${escapeAttr(c.name)}" oninput="DB.criteria[${i}].name=this.value;saveDB()"/></div>
+        <div><label>Descripción</label><input value="${escapeAttr(c.desc)}" oninput="DB.criteria[${i}].desc=this.value;saveDB()"/></div>
+        <div><label>Peso %</label><input type="number" min="0" max="100" value="${c.weight}" oninput="DB.criteria[${i}].weight=parseFloat(this.value)||0;saveDB();paintSum()"/></div>
+        <button class="btn btn--danger btn--sm" onclick="if(confirm('¿Borrar criterio?')){DB.criteria.splice(${i},1);saveDB();paintCriterios()}">Quitar</button>
+      </div>
+      ${subs.length?`<div style="margin-top:.5rem;padding-top:.4rem;border-top:1px dotted var(--vp-line)">
+        <span class="muted" style="font-size:.78rem;text-transform:uppercase;letter-spacing:.04em">Sub-items observados</span>
+        <ul style="margin:.3rem 0 0;padding-left:1.1rem;color:var(--vp-text-2);font-size:.85rem;line-height:1.45">
+          ${subs.map(s=>`<li>${escapeHTML(s)}</li>`).join("")}
+        </ul>
+      </div>`:""}
+    </div>`;
+  }).join("");
+  box.innerHTML += `<button class="btn btn--ghost btn--sm" style="margin-top:.75rem" onclick="DB.criteria.push({id:'c'+Date.now(),name:'Nuevo criterio',desc:'',weight:5,subItems:[]});saveDB();paintCriterios()">+ Añadir criterio</button>`;
   paintSum();
 }
 function paintSum(){
