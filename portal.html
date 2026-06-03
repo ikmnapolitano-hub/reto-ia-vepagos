@@ -2478,7 +2478,8 @@ function notifBuild(){
     }
   });
 
-  // 3) Chat público — mensajes de otros más nuevos que la última vez vista
+  // 3) Chat público — mensajes de otros más nuevos que la última vez vista.
+  //    Al hacer click: navega a Comunidad → Chat (set tab + goto).
   try{
     const seenChat = notifGetSeenChat();
     (COMM_STATE.chat||[])
@@ -2493,11 +2494,17 @@ function notifBuild(){
         ts: m.ts || 0,
         important: false,
         link: 'comunidad',
-        linkAction: function(){ COMM_STATE.tab='chat'; goto('comunidad'); }
+        linkAction: function(){
+          if(typeof COMM_STATE!=='undefined'){ COMM_STATE.tab='chat'; }
+          goto('comunidad');
+        }
       }));
   }catch{}
 
-  // 4) DMs personales
+  // 4) DMs personales — al hacer click abrimos la conversación con esa persona.
+  //    Paso 1: preparar estado COMM_STATE para que renderComunidad lo respete.
+  //    Paso 2: goto('comunidad') (sólo después renderiza con tab=dm).
+  //    Paso 3: cargar el thread y marcar visto.
   try{
     const seenDm = notifGetSeenDmMap();
     (COMM_STATE.inbox||[]).forEach(s=>{
@@ -2505,16 +2512,35 @@ function notifBuild(){
       const seen = Number(seenDm[String(s.other).toLowerCase()]||0);
       if((s.lastTs||0) <= seen) return;
       const ou = (DB.users[s.other])||{name:s.other};
+      const otherEmail = s.other;
       out.push({
-        id: 'dm-' + s.other + '-' + s.lastTs,
+        id: 'dm-' + otherEmail + '-' + s.lastTs,
         kind: 'dm',
         icon: '✉️',
-        title: 'Mensaje directo de ' + (ou.name||s.other),
+        title: 'Mensaje de ' + (ou.name||otherEmail),
         body: (s.lastText||'').slice(0,160),
         ts: s.lastTs || 0,
         important: false,
         link: 'comunidad',
-        linkAction: function(){ commOpenDM(s.other); }
+        linkAction: function(){
+          if(typeof COMM_STATE!=='undefined'){
+            COMM_STATE.tab = 'dm';
+            COMM_STATE.dmOther = otherEmail;
+            COMM_STATE.dmItems = [];
+            COMM_STATE.dmLoadedFor = '';
+          }
+          goto('comunidad');
+          // Cargar el hilo de inmediato y marcarlo como visto
+          try{
+            const my = SESSION && SESSION.email;
+            if(my && typeof commLoadDM === 'function'){
+              commLoadDM(my, otherEmail).then(function(){
+                if(typeof commRerender === 'function') commRerender();
+                if(typeof notifMarkDmSeen === 'function') notifMarkDmSeen(otherEmail);
+              });
+            }
+          }catch(e){ console.warn('dm linkAction err', e); }
+        }
       });
     });
   }catch{}
