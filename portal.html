@@ -965,6 +965,33 @@ function fileLegacyBadge(f){
   return (f && f.legacy && !f.url) ? ' <span class="badge badge--gray" title="Sube de nuevo este archivo">⚠ re-subir</span>' : '';
 }
 
+/* Purga binarios base64 legacy de TODO el DB. Idempotente.
+   Devuelve número de bytes liberados (estimado por longitud de las strings data).
+   Se llama en loadDB() Y después de pullRemote(), porque si solo se hace
+   en loadDB el pullRemote vuelve a traer la DB inflada del servidor y la sobreescribe. */
+function purgeLegacyBinaries(db){
+  if(!db || !db.users) return 0;
+  let freed = 0;
+  const strip = (obj)=>{
+    if(obj && typeof obj.data === 'string' && !obj.path && !obj.url){
+      freed += obj.data.length;
+      delete obj.data;
+      obj.legacy = true;
+    }
+  };
+  Object.values(db.users).forEach(u=>{
+    if(u.commitmentSigned) strip(u.commitmentSigned);
+    if(Array.isArray(u.solutionFiles)) u.solutionFiles.forEach(strip);
+    Object.values(u.progress||{}).forEach(p=>{
+      if(p && Array.isArray(p.files)) p.files.forEach(strip);
+    });
+  });
+  (db.campaigns||[]).forEach(c=>{
+    if(Array.isArray(c.attachments)) c.attachments.forEach(strip);
+  });
+  return freed;
+}
+
 var DB = loadDB();
 var SESSION = null; // {email, activeRole}
 var CURRENT_PAGE = "resumen";
@@ -1024,27 +1051,10 @@ function loadDB(){
           u.helpHistory.push({id:"hr"+u.helpRequest.ts, text:u.helpRequest.text, ts:u.helpRequest.ts, status:u.helpRequest.resolved?'resolved':'active', resolvedAt:u.helpRequest.resolvedAt||0, resolvedBy:'', resolution:''});
           delete u.helpRequest;
         }
-        // PURGA LEGACY: quitar binarios base64 que rompían la quota de localStorage.
-        // Conserva nombre/tamaño/fecha para mostrar el historial; el participante deberá re-subir.
-        // (Marca el archivo como 'legacy' para que el render le pida re-subida.)
-        if(u.commitmentSigned && u.commitmentSigned.data && !u.commitmentSigned.path){
-          delete u.commitmentSigned.data; u.commitmentSigned.legacy = true;
-        }
-        if(Array.isArray(u.solutionFiles)){
-          u.solutionFiles.forEach(f=>{ if(f && f.data && !f.path){ delete f.data; f.legacy = true; } });
-        }
-        Object.values(u.progress||{}).forEach(p=>{
-          if(p && Array.isArray(p.files)){
-            p.files.forEach(f=>{ if(f && f.data && !f.path){ delete f.data; f.legacy = true; } });
-          }
-        });
       });
       if(!db.campaigns) db.campaigns = []; // email marketing
-      (db.campaigns||[]).forEach(c=>{
-        if(Array.isArray(c.attachments)){
-          c.attachments.forEach(f=>{ if(f && f.data && !f.path){ delete f.data; f.legacy = true; } });
-        }
-      });
+      // Purga binarios base64 legacy (rompían la quota de localStorage)
+      purgeLegacyBinaries(db);
       return db;
     }
   }catch(e){}
@@ -1184,8 +1194,16 @@ async function pullRemote(){
           if(!u.progress) u.progress = {};
           for(let n=1;n<=5;n++){ if(!u.progress[n]) u.progress[n] = {text:"",files:[]}; }
         });
+        // CRÍTICO: el blob remoto puede traer binarios base64 legacy.
+        // Si no los limpiamos aquí, se re-inflan en localStorage y nunca baja del 98%.
+        const freed = purgeLegacyBinaries(DB);
         lastRemoteTs = j.ts||0;
-        localStorage.setItem(LS_KEY, JSON.stringify(DB));
+        try{ localStorage.setItem(LS_KEY, JSON.stringify(DB)); }catch(e){ console.warn('localStorage falló tras pullRemote:', e); }
+        // Si purgamos algo, hacer push para que el servidor también quede limpio
+        if(freed > 0){
+          console.log('Purgados '+(freed/1024).toFixed(1)+' KB de binarios legacy. Sincronizando con servidor...');
+          pushRemote();
+        }
       }
       setSyncBadge('ok');
       return !!(j && j.db);
@@ -1402,6 +1420,17 @@ function applyRoleUI(){
     fab.innerHTML = hasActiveHelp(u) ? "🚨 Tienes una solicitud activa" : "🚨 Necesito ayuda";
   } else {
     fab.classList.add("hidden");
+  }
+  // Bell de notificaciones de comunidad — sólo participantes
+  const nfab = document.getElementById("notif-fab");
+  if(nfab){
+    if(r==="participant"){
+      nfab.classList.remove("hidden");
+      notifStartPolling();   // arranca/refresca el conteo
+    } else {
+      nfab.classList.add("hidden");
+      notifStopPolling();
+    }
   }
   // Pill con count de ayuda en sidebar admin
   const pill = document.getElementById("help-pill");
@@ -2177,7 +2206,10 @@ function commOpenDM(other){
   COMM_STATE.dmOther = other;
   COMM_STATE.dmItems = [];
   const me = SESSION.email;
-  commLoadDM(me, other).then(commRerender);
+  commLoadDM(me, other).then(()=>{
+    commRerender();
+    notifMarkDmSeen(other);
+  });
 }
 
 function commRenderRanking(me, pr){
@@ -2260,9 +2292,154 @@ function openCommModal(html){
 }
 function closeCommModal(){ const e=document.getElementById('comm-modal'); if(e) e.remove(); }
 
+/* ---------- NOTIFICACIONES DE COMUNIDAD (campana tipo LinkedIn) ----------
+   Polling cada 25s del chat público y del inbox de DMs. Mantenemos una
+   marca "última vez vista" por usuario en localStorage para no inflar
+   ningún store. Nunca borramos datos: sólo movemos la marca local. */
+var NOTIF_STATE = { timer:null, chatUnread:0, dmUnread:0, popOpen:false, lastTotal:0 };
+
+function notifSeenChatKey(){ return 'vp-comm-seen-chat-' + (SESSION && SESSION.email||''); }
+function notifSeenDmKey(){   return 'vp-comm-seen-dm-'   + (SESSION && SESSION.email||''); }
+function notifGetSeenChat(){ const n=Number(localStorage.getItem(notifSeenChatKey())||0); return isFinite(n)?n:0; }
+function notifSetSeenChat(ts){ try{ localStorage.setItem(notifSeenChatKey(), String(ts||Date.now())); }catch{} }
+function notifGetSeenDmMap(){ try{ return JSON.parse(localStorage.getItem(notifSeenDmKey())||'{}')||{}; }catch{ return {}; } }
+function notifSetSeenDm(other, ts){
+  const m = notifGetSeenDmMap();
+  m[String(other||'').toLowerCase()] = ts || Date.now();
+  try{ localStorage.setItem(notifSeenDmKey(), JSON.stringify(m)); }catch{}
+}
+
+async function notifRefresh(){
+  if(!SESSION || SESSION.activeRole!=='participant') return;
+  const me = SESSION.email;
+  // Cargamos chat e inbox en paralelo
+  try{
+    const [cRes, iRes] = await Promise.all([
+      fetch(COMM_API+'?kind=chat', {cache:'no-store'}).then(r=>r.json()).catch(()=>({items:[]})),
+      fetch(COMM_API+'?kind=inbox&me='+encodeURIComponent(me), {cache:'no-store'}).then(r=>r.json()).catch(()=>({items:[]}))
+    ]);
+    const chatItems = (cRes.items||[]).filter(x=>!x.hidden && (x.fromEmail||'').toLowerCase()!==me.toLowerCase());
+    const seenChat = notifGetSeenChat();
+    const chatUnread = chatItems.filter(x=>x.ts>seenChat).length;
+    const seenDm = notifGetSeenDmMap();
+    const inbox = iRes.items||[];
+    const dmUnread = inbox.filter(s=>{
+      // sólo cuenta si el último mensaje no es mío y es más nuevo que la última vez que abrí esa conversación
+      if(s.lastFromMe) return false;
+      const seen = Number(seenDm[String(s.other).toLowerCase()]||0);
+      return s.lastTs > seen;
+    }).length;
+    NOTIF_STATE.chatUnread = chatUnread;
+    NOTIF_STATE.dmUnread = dmUnread;
+    notifPaintBadge();
+  }catch(e){ /* offline-friendly */ }
+}
+
+function notifPaintBadge(){
+  const dot = document.getElementById('notif-dot');
+  const fab = document.getElementById('notif-fab');
+  if(!dot || !fab) return;
+  const total = (NOTIF_STATE.chatUnread||0) + (NOTIF_STATE.dmUnread||0);
+  if(total>0){
+    dot.style.display='flex';
+    dot.textContent = total>99 ? '99+' : String(total);
+    fab.classList.add('has-unread');
+    fab.title = `Tienes ${total} actualización${total===1?'':'es'} de la comunidad`;
+  } else {
+    dot.style.display='none';
+    fab.classList.remove('has-unread');
+    fab.title = 'Mensajes y chat de la comunidad';
+  }
+  NOTIF_STATE.lastTotal = total;
+}
+
+function notifStartPolling(){
+  notifRefresh();
+  if(NOTIF_STATE.timer) return;
+  NOTIF_STATE.timer = setInterval(notifRefresh, 25000);
+}
+function notifStopPolling(){
+  if(NOTIF_STATE.timer){ clearInterval(NOTIF_STATE.timer); NOTIF_STATE.timer=null; }
+}
+
+function notifClosePop(){
+  const p = document.getElementById('notif-pop'); if(p) p.remove();
+  NOTIF_STATE.popOpen = false;
+}
+
+function notifClick(ev){
+  if(ev && ev.stopPropagation) ev.stopPropagation();
+  // Si hay popup abierto, lo cerramos
+  if(NOTIF_STATE.popOpen){ notifClosePop(); return; }
+  const chatN = NOTIF_STATE.chatUnread||0;
+  const dmN   = NOTIF_STATE.dmUnread||0;
+  // Si no hay nada nuevo: abrir comunidad en el chat directamente
+  if(chatN===0 && dmN===0){
+    COMM_STATE.tab = 'chat';
+    goto('comunidad');
+    return;
+  }
+  // Hay novedades: mostramos un pop con resumen y dos atajos
+  const pop = document.createElement('div');
+  pop.id = 'notif-pop';
+  pop.innerHTML = `
+    <div class="row">
+      <span>💬 <strong>Chat público</strong></span>
+      <span>${chatN>0?`<span class="badge badge--green">${chatN} nuevo${chatN===1?'':'s'}</span>`:'<span class="muted">al día</span>'}</span>
+    </div>
+    <div class="row">
+      <span>✉️ <strong>Mensajes directos</strong></span>
+      <span>${dmN>0?`<span class="badge badge--green">${dmN} nuevo${dmN===1?'':'s'}</span>`:'<span class="muted">al día</span>'}</span>
+    </div>
+    <div style="display:flex;gap:.4rem;margin-top:.6rem;flex-wrap:wrap">
+      ${dmN>0?'<button class="btn btn--primary btn--sm" onclick="notifOpen(\'dm\')">Ver mensajes</button>':''}
+      ${chatN>0?'<button class="btn btn--primary btn--sm" onclick="notifOpen(\'chat\')">Ver chat</button>':''}
+      <button class="btn btn--ghost btn--sm" onclick="notifClosePop()">Cerrar</button>
+    </div>
+  `;
+  document.body.appendChild(pop);
+  NOTIF_STATE.popOpen = true;
+  // Cerrar al hacer click fuera
+  setTimeout(()=>{
+    const onDoc = (e)=>{
+      const p = document.getElementById('notif-pop');
+      const f = document.getElementById('notif-fab');
+      if(!p) { document.removeEventListener('click', onDoc); return; }
+      if(p.contains(e.target) || (f && f.contains(e.target))) return;
+      notifClosePop(); document.removeEventListener('click', onDoc);
+    };
+    document.addEventListener('click', onDoc);
+  }, 0);
+}
+
+function notifOpen(tab){
+  notifClosePop();
+  COMM_STATE.tab = (tab==='dm'?'dm':'chat');
+  goto('comunidad');
+}
+
+/* Marcar el chat como visto cuando estás en la pestaña chat */
+function notifMarkChatSeen(){
+  const items = COMM_STATE.chat||[];
+  const last = items.length ? items[items.length-1].ts : Date.now();
+  notifSetSeenChat(last);
+  NOTIF_STATE.chatUnread = 0;
+  notifPaintBadge();
+}
+/* Marcar una conversación DM como vista */
+function notifMarkDmSeen(other){
+  const items = COMM_STATE.dmItems||[];
+  const last = items.length ? items[items.length-1].ts : Date.now();
+  notifSetSeenDm(other, last);
+  // recalcular dmUnread suavemente
+  notifRefresh();
+}
+
 function commRenderChat(me, u){
   const items = COMM_STATE.chat.filter(x=>!x.hidden);
   const myName = u.name || 'Yo';
+  // Al ver el chat, lo marcamos como visto (limpia el contador del bell)
+  setTimeout(notifMarkChatSeen, 0);
   return `
     <div class="card">
       <h3 style="margin:0 0 .25rem">💬 Chat público de la comunidad</h3>
@@ -4339,10 +4516,31 @@ function renderAdminDiagnostico(main){
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
         <button class="btn btn--ghost btn--sm" onclick="goto('a-diag')">⟳ Refrescar stats</button>
         <button class="btn btn--ghost btn--sm" onclick="diagCopyPendientesEmails()">📋 Copiar emails pendientes</button>
+        <button class="btn btn--danger btn--sm" onclick="diagPurgeNow()">🧹 Limpiar DB ahora</button>
       </div>
-      <p class="muted" style="margin-top:.6rem;font-size:.85rem">El botón "Copiar emails" te pega los correos de quienes tienen carta o avances legacy, listos para pegar en un email masivo de aviso.</p>
+      <p class="muted" style="margin-top:.6rem;font-size:.85rem"><strong>Copiar emails</strong>: te pega los correos de quienes tienen carta o avances legacy, listos para pegar en un email masivo.<br><strong>Limpiar DB ahora</strong>: fuerza la purga de binarios viejos en local Y en el servidor remoto. Úsalo si la barra del paso 3 sigue en rojo después de refrescar.</p>
     </div>
   `;
+}
+
+async function diagPurgeNow(){
+  if(!confirm("Vas a borrar los binarios base64 viejos del DB (local + servidor). Los archivos antiguos quedarán marcados como 'legacy' y los participantes tendrán que re-subir. ¿Continuar?")) return;
+  const before = diagLocalStorageSize();
+  const freed = purgeLegacyBinaries(DB);
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(DB)); }catch(e){ console.error('setItem post-purge falló:', e); }
+  // Forzar push inmediato (no esperar el debounce)
+  try{
+    const r = await fetch(REMOTE_URL, {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(DB)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+  }catch(e){
+    toast("⚠ Limpieza local OK, pero falló el push al servidor: "+e.message);
+    goto('a-diag');
+    return;
+  }
+  const after = diagLocalStorageSize();
+  const freedKB = ((before-after)/1024).toFixed(1);
+  toast(`✓ Limpiado: liberados ${freedKB} KB en localStorage y servidor sincronizado`);
+  goto('a-diag');
 }
 
 function diagCopyPendientesEmails(){
