@@ -394,6 +394,7 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
         <button class="navitem" data-page="problema" onclick="goto('problema')"><span class="ico">▸</span>Mi problema</button>
         <button class="navitem" data-page="avances" onclick="goto('avances')"><span class="ico">▸</span>Avances semanales</button>
         <button class="navitem" data-page="evaluacion" onclick="goto('evaluacion')"><span class="ico">▸</span>Evaluación</button>
+        <button class="navitem" data-page="feedback" onclick="goto('feedback')"><span class="ico">▸</span>Feedback <span id="fb-pill" class="nav-pill hidden"></span></button>
         <div class="navsection">Recursos</div>
         <button class="navitem" data-page="recursos" onclick="goto('recursos')"><span class="ico">▸</span>Recursos del reto</button>
         <button class="navitem" data-page="marca" onclick="goto('marca')"><span class="ico">▸</span>Manual de marca</button>
@@ -885,6 +886,22 @@ function applyRoleUI(){
     const n = Object.values(DB.users).filter(hasActiveHelp).length;
     pill.innerHTML = n>0 ? `<span class="pill-count">${n}</span>` : "";
   }
+  // Pill con count de feedback no leído para participante
+  const fbPill = document.getElementById("fb-pill");
+  if(fbPill && SESSION && SESSION.activeRole==="participant"){
+    const u = DB.users[SESSION.email];
+    const lastRead = u && u.lastFeedbackRead || 0;
+    const unread = u && (u.feedback||[]).filter(f=>f.ts>lastRead).length || 0;
+    if(unread>0){
+      fbPill.classList.remove("hidden");
+      fbPill.innerHTML = `<span class="pill-count">${unread}</span>`;
+    } else {
+      fbPill.classList.add("hidden");
+      fbPill.innerHTML = "";
+    }
+  } else if(fbPill) {
+    fbPill.classList.add("hidden");
+  }
 }
 function defaultPage(){return SESSION.activeRole==="admin"?"a-tablero":SESSION.activeRole==="manager"?"g-equipo":"resumen";}
 
@@ -902,6 +919,7 @@ function goto(page){
     case "problema": renderProblema(main); break;
     case "avances": renderAvances(main); break;
     case "evaluacion": renderEvaluacion(main); break;
+    case "feedback": renderFeedbackPage(main); break;
     case "recursos": renderRecursos(main); break;
     case "marca": renderMarca(main); break;
     case "pantallas": renderPantallas(main); break;
@@ -1376,15 +1394,30 @@ function renderMyHelpCard(u){
 
 function renderProblema(main){
   const u = DB.users[SESSION.email];
+  // Migración perezosa de campos
+  if(typeof u.challengeDecision === "undefined") u.challengeDecision = "pending";
+  if(typeof u.rejectionReason === "undefined") u.rejectionReason = "";
+  if(typeof u.rejectionWantsContinue === "undefined") u.rejectionWantsContinue = null;
+  if(typeof u.solutionText === "undefined") u.solutionText = "";
+  if(!Array.isArray(u.solutionFiles)) u.solutionFiles = [];
+
+  const decision = u.challengeDecision;
+
   main.innerHTML = `
     <h1 class="page-title">Mi problema</h1>
     <p class="page-sub">Esto es lo que se aprobó para que resuelvas con IA.</p>
+
     <div class="card">
       <h3>Problema aprobado</h3>
       <p style="font-size:1rem;color:var(--vp-text-2);white-space:pre-wrap">${escapeHTML(u.assignedProblem||"Sin asignar.")}</p>
       <h4 style="margin-top:1.25rem">Notas del comité</h4>
       <p style="white-space:pre-wrap">${escapeHTML(u.approvedNote||"—")}</p>
     </div>
+
+    ${renderChallengeDecisionBlock(u)}
+
+    ${decision==="accepted" ? renderSolutionBlock(u) : ""}
+
     <div class="card">
       <h3>Problemas que enviaste</h3>
       ${(u.problemas||[]).map((p,i)=>`
@@ -1394,6 +1427,163 @@ function renderProblema(main){
         </div>`).join("") || "<p class='muted'>No registraste problemas en la inscripción.</p>"}
     </div>
   `;
+}
+
+function renderChallengeDecisionBlock(u){
+  const d = u.challengeDecision;
+  if(d === "pending"){
+    return `<div class="card decision-card">
+      <h3>¿Aceptas este reto?</h3>
+      <p class="muted">Confirma si vas a desarrollar este problema durante el Reto IA o si prefieres no participar con esta propuesta.</p>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.75rem">
+        <button class="btn btn--primary" onclick="acceptChallenge()">✅ Aceptar reto</button>
+        <button class="btn btn--ghost" onclick="openRejectModal()">✗ Rechazar reto</button>
+      </div>
+    </div>`;
+  }
+  if(d === "accepted"){
+    return `<div class="card" style="border-left:4px solid var(--vp-green)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap">
+        <div>
+          <h3 style="margin:0">✅ Reto aceptado</h3>
+          <p class="muted" style="margin:.25rem 0 0">Aceptaste el reto el ${fmtDate(u.decisionDate||Date.now())}. Empieza a trabajar tu solución abajo.</p>
+        </div>
+        <button class="btn btn--ghost btn--sm" onclick="if(confirm('¿Cambiar tu decisión sobre el reto?')){DB.users[SESSION.email].challengeDecision='pending';saveDB();goto('problema');}">Cambiar decisión</button>
+      </div>
+    </div>`;
+  }
+  if(d === "rejected"){
+    const wants = u.rejectionWantsContinue;
+    return `<div class="card" style="border-left:4px solid var(--vp-red)">
+      <h3 style="margin:0 0 .25rem">✗ Reto rechazado</h3>
+      <p class="muted">Decidiste no participar con este problema el ${fmtDate(u.decisionDate||Date.now())}.</p>
+      <h4 style="margin:.85rem 0 .2rem">Motivo</h4>
+      <p style="white-space:pre-wrap">${escapeHTML(u.rejectionReason||"(sin motivo registrado)")}</p>
+      <h4 style="margin:.85rem 0 .2rem">¿Quiere seguir participando con otro problema?</h4>
+      <p><strong>${wants===true?"Sí, quiero seguir participando":wants===false?"No, prefiero retirarme del reto":"No respondiste"}</strong></p>
+      <div style="margin-top:.85rem">
+        <button class="btn btn--ghost btn--sm" onclick="if(confirm('¿Cambiar tu decisión sobre el reto?')){DB.users[SESSION.email].challengeDecision='pending';saveDB();goto('problema');}">Cambiar decisión</button>
+      </div>
+    </div>`;
+  }
+  return "";
+}
+
+function renderSolutionBlock(u){
+  return `<div class="card">
+    <h3>Tu solución</h3>
+    <p class="muted">Estructura tu propuesta siguiendo el mismo formato que usas en los <strong>Avances semanales</strong>: una descripción narrativa + archivos de apoyo.</p>
+    <div style="background:var(--vp-bg-soft);padding:.85rem 1rem;border-radius:8px;border-left:3px solid var(--vp-navy);margin:.5rem 0 1rem">
+      <strong style="font-family:var(--fd);font-size:.85rem;letter-spacing:.04em;text-transform:uppercase;color:var(--vp-navy)">Formato sugerido</strong>
+      <ol style="margin:.5rem 0 0;padding-left:1.2rem;font-size:.9rem;line-height:1.5">
+        <li><strong>Descripción de la solución</strong> — qué hace, para quién, cómo se usa.</li>
+        <li><strong>Cómo aplica IA</strong> — qué herramientas / modelos usaste y qué hace cada uno.</li>
+        <li><strong>Resultado esperado</strong> — qué cambia para el negocio o el usuario (métricas, tiempo, costo).</li>
+        <li><strong>Archivos de apoyo</strong> — diagramas, capturas, prototipos, video demo.</li>
+      </ol>
+    </div>
+    <div class="field">
+      <label>Descripción de la solución</label>
+      <textarea id="sol-text" style="min-height:180px" placeholder="1) Descripción de la solución&#10;…&#10;&#10;2) Cómo aplica IA&#10;…&#10;&#10;3) Resultado esperado&#10;…">${escapeHTML(u.solutionText||"")}</textarea>
+    </div>
+    <div class="field">
+      <label>Archivos de apoyo</label>
+      <label class="upload-btn">+ Adjuntar archivos<input type="file" multiple onchange="uploadSolutionFile(this.files)"/></label>
+    </div>
+    ${u.solutionFiles.length?'<div>'+u.solutionFiles.map((f,i)=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · ${fmtDate(f.ts)}</div></div><div style="display:flex;gap:.4rem"><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${f.data}">Descargar</a><button class="btn btn--ghost btn--sm" onclick="removeSolutionFile(${i})">Quitar</button></div></div>`).join("")+'</div>':""}
+    <div style="margin-top:.85rem"><button class="btn btn--primary btn--sm" onclick="saveSolution()">Guardar solución</button></div>
+  </div>`;
+}
+
+function acceptChallenge(){
+  const u = DB.users[SESSION.email];
+  u.challengeDecision = "accepted";
+  u.decisionDate = Date.now();
+  saveDB();
+  toast("¡Reto aceptado! 🎉");
+  confetti();
+  goto("problema");
+}
+
+function openRejectModal(){
+  // Modal simple inline
+  const overlay = document.createElement("div");
+  overlay.className = "fb-lightbox";
+  overlay.style.alignItems = "flex-start";
+  overlay.style.paddingTop = "4rem";
+  overlay.style.cursor = "default";
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:12px;max-width:520px;width:100%;padding:1.5rem 1.75rem;color:var(--vp-text-2);font-family:var(--fb)">
+      <h3 style="margin:0 0 .5rem;color:var(--vp-navy)">Rechazar reto</h3>
+      <p class="muted" style="margin:0 0 1rem">Cuéntanos por qué prefieres no avanzar con este problema. Esto ayuda al comité a entender qué ajustar.</p>
+      <div class="field">
+        <label>¿Por qué no?</label>
+        <textarea id="rej-reason" placeholder="Ej.: el problema ya no aplica a mi área, lo solucionamos por otro lado, no tengo capacidad este trimestre…" style="min-height:120px"></textarea>
+      </div>
+      <div class="field">
+        <label>¿Te interesa seguir participando en el reto con otro problema?</label>
+        <div style="display:flex;gap:.5rem;margin-top:.4rem">
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer"><input type="radio" name="rej-cont" value="yes"/> Sí, quiero seguir</label>
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer"><input type="radio" name="rej-cont" value="no"/> No, me retiro</label>
+        </div>
+      </div>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem">
+        <button class="btn btn--ghost btn--sm" onclick="this.closest('.fb-lightbox').remove()">Cancelar</button>
+        <button class="btn btn--primary btn--sm" onclick="submitRejection(this)">Confirmar rechazo</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function submitRejection(btn){
+  const modal = btn.closest(".fb-lightbox");
+  const reason = modal.querySelector("#rej-reason").value.trim();
+  const contSel = modal.querySelector('input[name="rej-cont"]:checked');
+  if(!reason){ toast("Escribe el motivo del rechazo"); return; }
+  if(!contSel){ toast("Indica si quieres seguir participando"); return; }
+  const u = DB.users[SESSION.email];
+  u.challengeDecision = "rejected";
+  u.rejectionReason = reason;
+  u.rejectionWantsContinue = contSel.value === "yes";
+  u.decisionDate = Date.now();
+  saveDB();
+  modal.remove();
+  toast("Rechazo registrado. El comité revisará tu decisión.");
+  goto("problema");
+}
+
+function saveSolution(){
+  const u = DB.users[SESSION.email];
+  const txt = document.getElementById("sol-text").value;
+  const wasEmpty = !u.solutionText;
+  u.solutionText = txt;
+  saveDB();
+  toast("Solución guardada");
+  if(wasEmpty && txt){ confetti(); }
+}
+
+function uploadSolutionFile(files){
+  const u = DB.users[SESSION.email];
+  let pending = files.length;
+  [...files].forEach(f=>{
+    const r = new FileReader();
+    r.onload = e=>{
+      u.solutionFiles.push({name:f.name,size:f.size,data:e.target.result,ts:Date.now()});
+      pending--;
+      if(pending===0){
+        saveDB();
+        toast("Subiste "+files.length+" archivo"+(files.length>1?'s':''));
+        goto("problema");
+      }
+    };
+    r.readAsDataURL(f);
+  });
+}
+
+function removeSolutionFile(i){
+  if(!confirm("¿Quitar este archivo?")) return;
+  DB.users[SESSION.email].solutionFiles.splice(i,1);
+  saveDB();goto("problema");
 }
 
 function renderAvances(main){
@@ -1488,6 +1678,27 @@ function renderEvaluacion(main){
     </div>
   `;
 }
+function renderFeedbackPage(main){
+  const u = DB.users[SESSION.email];
+  const total = (u.feedback||[]).length;
+  const lastRead = u.lastFeedbackRead || 0;
+  const unread = (u.feedback||[]).filter(f=>f.ts>lastRead).length;
+  main.innerHTML = `
+    <h1 class="page-title">Feedback del equipo</h1>
+    <p class="page-sub">Comentarios, sugerencias e ideas que tu gerente y los admins han dejado sobre tu proyecto.${unread>0?` <strong style="color:var(--vp-green-deep)">Tienes ${unread} ${unread===1?'mensaje nuevo':'mensajes nuevos'}.</strong>`:""}</p>
+    <div class="card">
+      <h3>${total>0?`${total} ${total===1?'comentario':'comentarios'}`:"Sin comentarios todavía"}</h3>
+      ${renderFeedbackThread(u)}
+    </div>
+  `;
+  // Marcar como leído al abrir la página
+  if(unread>0){
+    u.lastFeedbackRead = Date.now();
+    saveDB();
+    applyRoleUI(); // refrescar el pill del sidebar
+  }
+}
+
 function renderFeedbackThread(u){
   if(!u.feedback.length) return '<p class="muted">Aún no hay comentarios. Suelen llegar después de cada entrega semanal.</p>';
   return '<div class="feedback-thread">'+u.feedback.slice().reverse().map(f=>{
