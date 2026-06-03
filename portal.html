@@ -869,6 +869,81 @@ const DEFAULT_RESOURCES = [
 
 /* ---------- 2. ESTADO ---------- */
 var LS_KEY="vp-reto-ia-portal-v3";
+
+/* ---------- 2.1 STORAGE DE ARCHIVOS (Netlify Blobs vía /api/upload) ----------
+   Los archivos NO se guardan en localStorage (rompe la quota de 5 MB).
+   Subimos a Netlify Blobs y en DB solo guardamos {name, size, ts, path, url, contentType}.
+   El renderer usa fileHref(f) para soportar también archivos viejos en base64. */
+var UPLOAD_URL = '/api/upload';
+var MAX_UPLOAD_MB = 25;
+var ALLOWED_UPLOAD_RE = /^(application\/pdf|image\/(png|jpe?g|gif|webp)|video\/(mp4|quicktime|webm))$/i;
+var ALLOWED_EXT_RE = /\.(pdf|png|jpe?g|gif|webp|mp4|mov|webm)$/i;
+
+function validateUploadFile(f, {pdfOnly=false}={}){
+  if(!f) return "Archivo vacío.";
+  if(f.size === 0) return `"${f.name}" está vacío.`;
+  if(f.size > MAX_UPLOAD_MB*1024*1024){
+    return `"${f.name}" pesa ${(f.size/1048576).toFixed(1)} MB. Máximo permitido: ${MAX_UPLOAD_MB} MB.`;
+  }
+  if(pdfOnly){
+    const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+    if(!isPdf) return `"${f.name}" debe ser un archivo PDF.`;
+    return null;
+  }
+  const okType = ALLOWED_UPLOAD_RE.test(f.type || '') || ALLOWED_EXT_RE.test(f.name || '');
+  if(!okType) return `"${f.name}" no es un formato permitido (PDF, imagen o video MP4/MOV/WebM).`;
+  return null;
+}
+
+async function uploadFileToBlobs(file, prefix){
+  const url = `${UPLOAD_URL}?prefix=${encodeURIComponent(prefix)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'content-type': file.type || 'application/octet-stream',
+      'x-filename': file.name,
+      'x-content-type': file.type || 'application/octet-stream'
+    },
+    body: file
+  });
+  if(!res.ok){
+    let detail = '';
+    try{ const j = await res.json(); detail = j.error || j.detail || ''; }catch(e){}
+    throw new Error(`HTTP ${res.status}${detail?' · '+detail:''}`);
+  }
+  const data = await res.json();
+  if(!data.ok || !data.path) throw new Error('Respuesta inválida del servidor');
+  return {
+    name: file.name,
+    size: file.size,
+    contentType: data.contentType || file.type || '',
+    path: data.path,
+    url: data.url,
+    ts: Date.now()
+  };
+}
+
+async function deleteFileFromBlobs(path){
+  if(!path) return; // legacy base64 sin path: nada que borrar del servidor
+  try{
+    await fetch(`${UPLOAD_URL}?path=${encodeURIComponent(path)}`, {method:'DELETE'});
+  }catch(e){
+    console.warn('No se pudo borrar el blob remoto:', path, e);
+  }
+}
+
+/* Helper de render: soporta tanto el nuevo formato {url} como el legacy {data: base64}.
+   Si el archivo es legacy purgado (no tiene url ni data), devuelve un href que avisa. */
+function fileHref(f){
+  if(!f) return '#';
+  if(f.url) return f.url;
+  if(f.data) return f.data;
+  return 'javascript:alert("Este archivo se subió con la versión vieja y ya no está disponible. Vuelve a subirlo, por favor.");void(0);';
+}
+function fileLegacyBadge(f){
+  return (f && f.legacy && !f.url) ? ' <span class="badge badge--gray" title="Sube de nuevo este archivo">⚠ re-subir</span>' : '';
+}
+
 var DB = loadDB();
 var SESSION = null; // {email, activeRole}
 var CURRENT_PAGE = "resumen";
@@ -928,8 +1003,27 @@ function loadDB(){
           u.helpHistory.push({id:"hr"+u.helpRequest.ts, text:u.helpRequest.text, ts:u.helpRequest.ts, status:u.helpRequest.resolved?'resolved':'active', resolvedAt:u.helpRequest.resolvedAt||0, resolvedBy:'', resolution:''});
           delete u.helpRequest;
         }
+        // PURGA LEGACY: quitar binarios base64 que rompían la quota de localStorage.
+        // Conserva nombre/tamaño/fecha para mostrar el historial; el participante deberá re-subir.
+        // (Marca el archivo como 'legacy' para que el render le pida re-subida.)
+        if(u.commitmentSigned && u.commitmentSigned.data && !u.commitmentSigned.path){
+          delete u.commitmentSigned.data; u.commitmentSigned.legacy = true;
+        }
+        if(Array.isArray(u.solutionFiles)){
+          u.solutionFiles.forEach(f=>{ if(f && f.data && !f.path){ delete f.data; f.legacy = true; } });
+        }
+        Object.values(u.progress||{}).forEach(p=>{
+          if(p && Array.isArray(p.files)){
+            p.files.forEach(f=>{ if(f && f.data && !f.path){ delete f.data; f.legacy = true; } });
+          }
+        });
       });
       if(!db.campaigns) db.campaigns = []; // email marketing
+      (db.campaigns||[]).forEach(c=>{
+        if(Array.isArray(c.attachments)){
+          c.attachments.forEach(f=>{ if(f && f.data && !f.path){ delete f.data; f.legacy = true; } });
+        }
+      });
       return db;
     }
   }catch(e){}
@@ -968,8 +1062,19 @@ function loadDB(){
   return {users, criteria: JSON.parse(JSON.stringify(DEFAULT_CRITERIA)), criteriaVersion: CRITERIA_VERSION, resources: JSON.parse(JSON.stringify(DEFAULT_RESOURCES)), resourcesVersion: RESOURCES_VERSION, config: Object.assign({}, DEFAULT_CONFIG), configVersion: CONFIG_VERSION, campaigns: []};
 }
 function saveDB(){
-  localStorage.setItem(LS_KEY, JSON.stringify(DB));
-  pushRemote(); // sync al servidor compartido
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify(DB));
+  }catch(e){
+    console.error("saveDB: localStorage falló (probable QuotaExceeded). El DB no debería contener binarios.", e);
+    try{ toast("⚠ Espacio local lleno. Avisa a Isabella si vuelve a pasar."); }catch(_){}
+    // No detenemos: igual intentamos pushRemote para no perder lo que sí podemos enviar.
+  }
+  try{
+    pushRemote(); // sync al servidor compartido
+  }catch(e){
+    console.error("saveDB: pushRemote falló.", e);
+  }
+  return true;
 }
 
 /* ---------- SYNC REMOTO (Netlify Blobs) ----------
@@ -1969,7 +2074,7 @@ function renderSolutionBlock(u){
       <label>Archivos de apoyo</label>
       <label class="upload-btn">+ Adjuntar archivos<input type="file" multiple onchange="uploadSolutionFile(this.files)"/></label>
     </div>
-    ${u.solutionFiles.length?'<div>'+u.solutionFiles.map((f,i)=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · ${fmtDate(f.ts)}</div></div><div style="display:flex;gap:.4rem"><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${f.data}">Descargar</a><button class="btn btn--ghost btn--sm" onclick="removeSolutionFile(${i})">Quitar</button></div></div>`).join("")+'</div>':""}
+    ${u.solutionFiles.length?'<div>'+u.solutionFiles.map((f,i)=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · ${fmtDate(f.ts)}</div></div><div style="display:flex;gap:.4rem"><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${fileHref(f)}" target="_blank" rel="noopener">Descargar</a><button class="btn btn--ghost btn--sm" onclick="removeSolutionFile(${i})">Quitar</button></div></div>`).join("")+'</div>':""}
     <div style="margin-top:.85rem"><button class="btn btn--primary btn--sm" onclick="saveSolution()">Guardar solución</button></div>
   </div>`;
 }
@@ -2041,28 +2146,37 @@ function saveSolution(){
   if(wasEmpty && txt){ confetti(); }
 }
 
-function uploadSolutionFile(files){
+async function uploadSolutionFile(files){
+  const arr = [...files];
+  if(!arr.length) return;
+  // Validar TODO antes de subir nada
+  for(const f of arr){
+    const err = validateUploadFile(f);
+    if(err){ toast("⚠ "+err); return; }
+  }
   const u = DB.users[SESSION.email];
-  let pending = files.length;
-  [...files].forEach(f=>{
-    const r = new FileReader();
-    r.onload = e=>{
-      u.solutionFiles.push({name:f.name,size:f.size,data:e.target.result,ts:Date.now()});
-      pending--;
-      if(pending===0){
-        saveDB();
-        toast("Subiste "+files.length+" archivo"+(files.length>1?'s':''));
-        goto("problema");
-      }
-    };
-    r.readAsDataURL(f);
-  });
+  toast("⟳ Subiendo "+arr.length+" archivo"+(arr.length>1?'s':'')+"…");
+  try{
+    for(const f of arr){
+      const meta = await uploadFileToBlobs(f, `solution/${SESSION.email}`);
+      u.solutionFiles.push(meta);
+    }
+    saveDB();
+    toast("✓ Subiste "+arr.length+" archivo"+(arr.length>1?'s':''));
+    goto("problema");
+  }catch(e){
+    console.error("uploadSolutionFile:", e);
+    toast("⚠ Error al subir: "+(e.message||"red"));
+    goto("problema");
+  }
 }
 
 function removeSolutionFile(i){
   if(!confirm("¿Quitar este archivo?")) return;
-  DB.users[SESSION.email].solutionFiles.splice(i,1);
-  saveDB();goto("problema");
+  const removed = DB.users[SESSION.email].solutionFiles.splice(i,1)[0];
+  saveDB();
+  if(removed && removed.path) deleteFileFromBlobs(removed.path);
+  goto("problema");
 }
 
 function renderAvances(main){
@@ -2088,7 +2202,7 @@ function renderAvances(main){
           <label>Archivos (PDF, imágenes, capturas, video)</label>
           <label class="upload-btn">+ Adjuntar archivos<input type="file" multiple onchange="uploadProgress(${s.n}, this.files)"/></label>
         </div>
-        ${p.files.length?'<div>'+p.files.map((f,i)=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · ${fmtDate(f.ts)}</div></div><div style="display:flex;gap:.4rem"><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${f.data}">Descargar</a><button class="btn btn--ghost btn--sm" onclick="removeProgressFile(${s.n},${i})">Quitar</button></div></div>`).join("")+'</div>':""}
+        ${p.files.length?'<div>'+p.files.map((f,i)=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · ${fmtDate(f.ts)}</div></div><div style="display:flex;gap:.4rem"><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${fileHref(f)}" target="_blank" rel="noopener">Descargar</a><button class="btn btn--ghost btn--sm" onclick="removeProgressFile(${s.n},${i})">Quitar</button></div></div>`).join("")+'</div>':""}
         <div style="margin-top:.75rem;display:flex;gap:.5rem"><button class="btn btn--primary btn--sm" onclick="saveProgress(${s.n})">Guardar avance</button></div>
       </div>`;
     }).join("")}
@@ -2106,29 +2220,37 @@ function saveProgress(n){
     if(btn) xpPop(btn.left+btn.width/2, btn.top, "+10 XP");
   }
 }
-function uploadProgress(n, files){
+async function uploadProgress(n, files){
+  const arr = [...files];
+  if(!arr.length) return;
+  for(const f of arr){
+    const err = validateUploadFile(f);
+    if(err){ toast("⚠ "+err); return; }
+  }
   const u = DB.users[SESSION.email];
   const wasEmptyWeek = !u.progress[n].files.length && !u.progress[n].text;
-  let pending = files.length;
-  [...files].forEach(f=>{
-    const r = new FileReader();
-    r.onload = e=>{
-      u.progress[n].files.push({name:f.name,size:f.size,data:e.target.result,ts:Date.now()});
-      pending--;
-      if(pending===0){
-        saveDB();
-        if(wasEmptyWeek) confetti();
-        toast("Subiste "+files.length+" archivo"+(files.length>1?'s':'')+" a Semana "+n);
-        goto("avances");
-      }
-    };
-    r.readAsDataURL(f);
-  });
+  toast("⟳ Subiendo "+arr.length+" archivo"+(arr.length>1?'s':'')+" a Semana "+n+"…");
+  try{
+    for(const f of arr){
+      const meta = await uploadFileToBlobs(f, `progress/${SESSION.email}/sem${n}`);
+      u.progress[n].files.push(meta);
+    }
+    saveDB();
+    if(wasEmptyWeek) confetti();
+    toast("✓ Subiste "+arr.length+" archivo"+(arr.length>1?'s':'')+" a Semana "+n);
+    goto("avances");
+  }catch(e){
+    console.error("uploadProgress:", e);
+    toast("⚠ Error al subir: "+(e.message||"red"));
+    goto("avances");
+  }
 }
 function removeProgressFile(n,i){
   if(!confirm("¿Quitar este archivo?")) return;
-  DB.users[SESSION.email].progress[n].files.splice(i,1);
-  saveDB();goto("avances");
+  const removed = DB.users[SESSION.email].progress[n].files.splice(i,1)[0];
+  saveDB();
+  if(removed && removed.path) deleteFileFromBlobs(removed.path);
+  goto("avances");
 }
 
 function renderEvaluacion(main){
@@ -2426,19 +2548,38 @@ function renderCarta(main){
     </div>
   `;
 }
-function uploadCommitment(files){
+async function uploadCommitment(files){
   if(!files[0]) return;
   const f = files[0];
-  const r = new FileReader();
-  r.onload = e=>{
-    DB.users[SESSION.email].commitmentSigned = {filename:f.name,data:e.target.result,ts:Date.now()};
-    saveDB();confetti();toast("Carta firmada subida ✓");goto("carta");
-  };
-  r.readAsDataURL(f);
+  const err = validateUploadFile(f, {pdfOnly:true});
+  if(err){ toast("⚠ "+err); return; }
+  toast("⟳ Subiendo carta firmada…");
+  try{
+    const meta = await uploadFileToBlobs(f, `commitment/${SESSION.email}`);
+    DB.users[SESSION.email].commitmentSigned = {
+      filename: f.name,
+      size: f.size,
+      contentType: meta.contentType,
+      path: meta.path,
+      url: meta.url,
+      ts: meta.ts
+    };
+    saveDB();
+    confetti();
+    toast("✓ Carta firmada subida");
+    goto("carta");
+  }catch(e){
+    console.error("uploadCommitment:", e);
+    toast("⚠ Error al subir la carta: "+(e.message||"red"));
+  }
 }
 function removeCommitment(){
   if(!confirm("¿Reemplazar la carta? Tendrás que volver a subirla.")) return;
-  DB.users[SESSION.email].commitmentSigned=null;saveDB();goto("carta");
+  const prev = DB.users[SESSION.email].commitmentSigned;
+  DB.users[SESSION.email].commitmentSigned = null;
+  saveDB();
+  if(prev && prev.path) deleteFileFromBlobs(prev.path);
+  goto("carta");
 }
 
 /* ----- Carta de compromiso (PDF oficial sobre hoja membretada Vepagos) ----- */
@@ -2667,7 +2808,7 @@ function renderManagerEquipo(main){
             <td><strong>${escapeHTML(u.name)}</strong>${hasActiveHelp(u)?' <span class="badge badge--red">AYUDA</span>':''}<div class="muted">${escapeHTML(u.cargo)} · ${escapeHTML(u.area)}</div></td>
             <td><span class="badge ${u.status==='aprobado'?'badge--green':u.status==='rechazado'?'badge--red':'badge--amber'}">${u.status}</span></td>
             <td><span class="badge ${pace.cls}">${pace.label}</span></td>
-            <td>${weeks}/4</td>
+            <td>${weeks}/5</td>
             <td>${u.commitmentSigned?'<span class="badge badge--green">Firmada</span>':'<span class="badge badge--gray">Pendiente</span>'}</td>
             <td>${u.termsAccepted?'<span class="badge badge--green">Sí</span>':'<span class="badge badge--gray">No</span>'}</td>
             <td><strong>${sc.toFixed(1)}</strong></td>
@@ -2684,7 +2825,7 @@ function rowFor(u, isOwn){
   return `<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:.75rem;align-items:center">
     <div><strong>${escapeHTML(u.name)}</strong><div class="muted">${escapeHTML(u.cargo)}</div></div>
     <div><span class="badge ${u.status==='aprobado'?'badge--green':u.status==='rechazado'?'badge--red':'badge--amber'}">${u.status}</span></div>
-    <div><span class="muted">Avances</span><br/><strong>${weeks}/4</strong></div>
+    <div><span class="muted">Avances</span><br/><strong>${weeks}/5</strong></div>
     <div><span class="muted">Puntaje</span><br/><strong>${sc.toFixed(1)}/100</strong></div>
     <div><button class="btn btn--ghost btn--sm" onclick="viewDetail('${u.email}','g-detalle')">Ver →</button></div>
   </div>`;
@@ -2745,7 +2886,7 @@ function renderKpiList(main){
             <td>${escapeHTML(mgrName)}</td>
             <td><span class="badge ${u.status==='aprobado'?'badge--green':u.status==='rechazado'?'badge--red':'badge--amber'}">${u.status}</span></td>
             <td><span class="badge ${pace.cls}">${pace.label}</span></td>
-            <td>${weeks}/4</td>
+            <td>${weeks}/5</td>
             <td><strong>${sc.toFixed(1)}</strong></td>
             <td><button class="btn btn--ghost btn--sm" onclick="viewDetail('${u.email}','a-detalle')">Abrir</button></td>
           </tr>`;
@@ -2982,7 +3123,7 @@ function renderTableroTabla(){
         <td><span class="badge ${u.status==='aprobado'?'badge--green':u.status==='rechazado'?'badge--red':'badge--amber'}">${u.status}</span></td>
         <td><span class="badge ${pace.cls}">${pace.label}</span></td>
         <td>${enr?'<span class="badge badge--green">Lista</span>':'<span class="badge badge--amber">'+enrollmentPct(u)+'%</span>'}</td>
-        <td>${weeks}/4</td>
+        <td>${weeks}/5</td>
         <td><strong>${sc.toFixed(1)}</strong></td>
         <td><button class="btn btn--ghost btn--sm" onclick="viewDetail('${u.email}','a-detalle')">Abrir</button></td>
       </tr>`;
@@ -3015,6 +3156,11 @@ function renderAdminParticipantes(main){
         <option value="pendiente">Pendientes</option>
         <option value="rechazado">Rechazados</option>
       </select>
+      <select class="role-pick" id="apf-accept" onchange="renderAdminTabla()">
+        <option value="">Aceptación del reto</option>
+        <option value="acepto">Aceptó el reto</option>
+        <option value="pendiente">Pendiente por indicar</option>
+      </select>
       <select class="role-pick" id="apf-area" onchange="renderAdminTabla()">
         <option value="">Todas las áreas</option>
         ${[...new Set(Object.values(DB.users).filter(isRealParticipant).map(u=>u.area))].sort().map(a=>`<option value="${escapeAttr(a)}">${escapeHTML(a)}</option>`).join("")}
@@ -3024,29 +3170,37 @@ function renderAdminParticipantes(main){
   `;
   renderAdminTabla();
 }
+function acceptedChallenge(u){
+  // "Aceptó el reto" = subió carta firmada Y aceptó los términos
+  return !!u.commitmentSigned && !!u.termsAccepted;
+}
 function renderAdminTabla(){
   const q = (document.getElementById("apf")?.value||"").toLowerCase();
   const fs = document.getElementById("apf-status")?.value||"";
   const fa = document.getElementById("apf-area")?.value||"";
+  const fc = document.getElementById("apf-accept")?.value||"";
   const rows = Object.values(DB.users)
     .filter(isRealParticipant)
     .filter(u=>!q || (u.name+" "+u.email+" "+u.area+" "+u.cargo).toLowerCase().includes(q))
     .filter(u=>!fs || u.status===fs)
     .filter(u=>!fa || u.area===fa)
+    .filter(u=>!fc || (fc==='acepto' ? acceptedChallenge(u) : !acceptedChallenge(u)))
     .sort((a,b)=>a.name.localeCompare(b.name));
-  const html = `<table><thead><tr><th>Participante</th><th>Área</th><th>Gerente</th><th>Estado</th><th>Ritmo</th><th>Avances</th><th>Carta</th><th>Términos</th><th>Puntaje</th><th></th></tr></thead><tbody>
+  const html = `<table><thead><tr><th>Participante</th><th>Área</th><th>Gerente</th><th>Estado</th><th>Aceptó reto</th><th>Ritmo</th><th>Avances</th><th>Carta</th><th>Términos</th><th>Puntaje</th><th></th></tr></thead><tbody>
     ${rows.map(u=>{
       const weeks = Object.values(u.progress).filter(p=>p.text||p.files.length).length;
       const sc = sumScore(u).total;
       const mgr = DB.users[u.manager]; const mgrName = mgr?mgr.name:(u.manager||"—");
       const pace = paceFor(u);
+      const accepted = acceptedChallenge(u);
       return `<tr class="${hasActiveHelp(u)?'help-active':''}">
         <td><strong>${escapeHTML(u.name)}</strong>${hasActiveHelp(u)?' <span class="badge badge--red">AYUDA</span>':''}<div class="muted">${escapeHTML(u.email)}</div></td>
         <td>${escapeHTML(u.area)}</td>
         <td>${escapeHTML(mgrName)}</td>
         <td><span class="badge ${u.status==='aprobado'?'badge--green':u.status==='rechazado'?'badge--red':'badge--amber'}">${u.status}</span></td>
+        <td>${accepted?'<span class="badge badge--green">Aceptó</span>':'<span class="badge badge--amber">Pendiente</span>'}</td>
         <td><span class="badge ${pace.cls}">${pace.label}</span></td>
-        <td>${weeks}/4</td>
+        <td>${weeks}/5</td>
         <td>${u.commitmentSigned?'<span class="badge badge--green">Sí</span>':'<span class="badge badge--gray">No</span>'}</td>
         <td>${u.termsAccepted?'<span class="badge badge--green">Sí</span>':'<span class="badge badge--gray">No</span>'}</td>
         <td><strong>${sc.toFixed(1)}</strong></td>
@@ -3111,7 +3265,7 @@ function renderDetalle(main, email, viewerRole){
       </div>
       ${u.commitmentSigned?`<div class="uploaded" style="margin-top:.85rem">
         <div><strong>📄 ${escapeHTML(u.commitmentSigned.filename)}</strong><div class="meta">Carta firmada · subida ${fmtDate(u.commitmentSigned.ts)}</div></div>
-        <a class="btn btn--primary btn--sm" download="${escapeAttr(u.commitmentSigned.filename)}" href="${u.commitmentSigned.data}">⬇ Descargar carta firmada</a>
+        <a class="btn btn--primary btn--sm" download="${escapeAttr(u.commitmentSigned.filename)}" href="${fileHref(u.commitmentSigned)}" target="_blank" rel="noopener">⬇ Descargar carta firmada</a>
       </div>`:`<p class="muted" style="margin:.85rem 0 0">Aún no ha subido la carta firmada.</p>`}
     </div>
 
@@ -3126,7 +3280,7 @@ function renderDetalle(main, email, viewerRole){
     </div>
 
     <div class="grid g3">
-      <div class="kpi"><p class="label">Avances</p><div class="value">${Object.values(u.progress).filter(p=>p.text||p.files.length).length}<span style="font-size:1rem;color:var(--vp-text-soft)">/4</span></div></div>
+      <div class="kpi"><p class="label">Avances</p><div class="value">${Object.values(u.progress).filter(p=>p.text||p.files.length).length}<span style="font-size:1rem;color:var(--vp-text-soft)">/5</span></div></div>
       <div class="kpi"><p class="label">Puntaje</p><div class="value">${sc.total.toFixed(1)}<span style="font-size:1rem;color:var(--vp-text-soft)">/100</span></div></div>
       <div class="kpi"><p class="label">Feedback</p><div class="value">${u.feedback.length}</div></div>
     </div>
@@ -3196,7 +3350,7 @@ function renderDetalleTab(tab, u, viewerRole){
 
         <h4 style="margin:1rem 0 .3rem">Archivos de apoyo ${solFiles.length?`(${solFiles.length})`:""}</h4>
         ${solFiles.length
-          ? solFiles.map(f=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · subido ${fmtDate(f.ts)}</div></div><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${f.data}">⬇ Descargar</a></div>`).join("")
+          ? solFiles.map(f=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · subido ${fmtDate(f.ts)}</div></div><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${fileHref(f)}" target="_blank" rel="noopener">⬇ Descargar</a></div>`).join("")
           : `<p class="muted" style="margin:0">— sin archivos adjuntos todavía —</p>`}
 
         ${lastSolFile||solText
@@ -3227,7 +3381,7 @@ function renderDetalleTab(tab, u, viewerRole){
         <h4>Resumen</h4>
         <p style="white-space:pre-wrap">${p.text?escapeHTML(p.text):'<span class="muted">— sin texto —</span>'}</p>
         <h4>Archivos</h4>
-        ${p.files.length?p.files.map(f=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · ${fmtDate(f.ts)}</div></div><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${f.data}">Descargar</a></div>`).join(""):'<p class="muted">— sin archivos —</p>'}
+        ${p.files.length?p.files.map(f=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · ${fmtDate(f.ts)}</div></div><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${fileHref(f)}" target="_blank" rel="noopener">Descargar</a></div>`).join(""):'<p class="muted">— sin archivos —</p>'}
       </div>`;
     }).join("");
   }
@@ -3768,7 +3922,7 @@ function renderAdminMarketingEdit(main){
       <div class="field"><label>Link (opcional, se pega al final)</label><input id="cmp-link" value="${escapeAttr(c.link||'')}" placeholder="https://reto-ia-vepagos.netlify.app/portal.html"/></div>
       <div class="field"><label>Adjuntos (opcional · solo se mostrarán como referencia en el email; los adjuntos reales se manejan al enviar desde tu cliente)</label>
         <label class="upload-btn">+ Adjuntar archivos<input type="file" multiple onchange="uploadCampaignFiles('${c.id}',this.files)"/></label>
-        ${(c.attachments||[]).map((f,i)=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)}</div></div><div style="display:flex;gap:.4rem"><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${f.data}">Descargar</a><button class="btn btn--danger btn--sm" onclick="removeCampaignFile('${c.id}',${i})">Quitar</button></div></div>`).join("")}
+        ${(c.attachments||[]).map((f,i)=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)}</div></div><div style="display:flex;gap:.4rem"><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${fileHref(f)}" target="_blank" rel="noopener">Descargar</a><button class="btn btn--danger btn--sm" onclick="removeCampaignFile('${c.id}',${i})">Quitar</button></div></div>`).join("")}
       </div>
     </div>
 
@@ -3817,14 +3971,36 @@ function toggleAudienceEmail(cId, email, checked){
   if(!checked) c.audience.emails = c.audience.emails.filter(e=>e!==email);
   saveDB();
 }
-function uploadCampaignFiles(cId, files){
+async function uploadCampaignFiles(cId, files){
+  const arr = [...files];
+  if(!arr.length) return;
+  for(const f of arr){
+    const err = validateUploadFile(f);
+    if(err){ toast("⚠ "+err); return; }
+  }
   const c = DB.campaigns.find(x=>x.id===cId);
   if(!c.attachments) c.attachments=[];
-  [...files].forEach(f=>{const r=new FileReader();r.onload=e=>{c.attachments.push({name:f.name,size:f.size,data:e.target.result});saveDB();goto('a-marketing-edit');};r.readAsDataURL(f);});
+  toast("⟳ Subiendo "+arr.length+" archivo"+(arr.length>1?'s':'')+"…");
+  try{
+    for(const f of arr){
+      const meta = await uploadFileToBlobs(f, `campaign/${cId}`);
+      c.attachments.push(meta);
+    }
+    saveDB();
+    toast("✓ Adjuntos subidos");
+    goto('a-marketing-edit');
+  }catch(e){
+    console.error("uploadCampaignFiles:", e);
+    toast("⚠ Error al subir: "+(e.message||"red"));
+    goto('a-marketing-edit');
+  }
 }
 function removeCampaignFile(cId, i){
   const c = DB.campaigns.find(x=>x.id===cId);
-  c.attachments.splice(i,1);saveDB();goto('a-marketing-edit');
+  const removed = c.attachments.splice(i,1)[0];
+  saveDB();
+  if(removed && removed.path) deleteFileFromBlobs(removed.path);
+  goto('a-marketing-edit');
 }
 function saveCampaign(cId, schedule){
   const c = DB.campaigns.find(x=>x.id===cId);

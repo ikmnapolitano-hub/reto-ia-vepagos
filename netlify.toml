@@ -26,6 +26,13 @@
   status = 200
   force = true
 
+# Alias para la función de upload (archivos a Netlify Blobs · store "reto-ia-files")
+[[redirects]]
+  from = "/api/upload"
+  to = "/.netlify/functions/upload"
+  status = 200
+  force = true
+
 [[headers]]
   for = "/*"
   [headers.values]
