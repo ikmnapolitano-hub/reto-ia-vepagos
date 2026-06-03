@@ -93,6 +93,9 @@ input,textarea,select{font-family:inherit;font-size:14px}
 .g3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
 
 .kpi{padding:1rem;background:#fff;border:1px solid var(--vp-line);border-radius:var(--r)}
+.kpi--click{cursor:pointer;transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease}
+.kpi--click:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,31,96,.12);border-color:var(--vp-navy)}
+.kpi--click:active{transform:translateY(0)}
 .kpi .label{font-family:var(--fd);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--vp-text-soft);margin:0 0 .3rem}
 .kpi .value{font-family:var(--fd);font-size:1.7rem;font-weight:700;color:var(--vp-navy)}
 
@@ -937,6 +940,7 @@ function goto(page){
     case "g-equipo": renderManagerEquipo(main); break;
     case "g-detalle": renderManagerDetalle(main); break;
     case "a-tablero": renderAdminTablero(main); break;
+    case "a-lista": renderKpiList(main); break;
     case "a-participantes": renderAdminParticipantes(main); break;
     case "a-ayuda": renderAdminAyuda(main); break;
     case "a-detalle": renderAdminDetalle(main); break;
@@ -2164,6 +2168,61 @@ function renderManagerDetalle(main){
 }
 
 /* ---------- 7. ADMIN ---------- */
+// Filtros predefinidos para listas clickeables desde el Tablero
+var KPI_FILTER = null;
+var KPI_FILTERS = {
+  'a-tiempo':       {title:'A tiempo',                 fn:u=>paceFor(u).cls==='badge--green'},
+  'atrasados':      {title:'Atrasados',                fn:u=>paceFor(u).cls==='badge--red'},
+  'inscritos':      {title:'Inscripción 100% completa',fn:u=>enrollmentDone(u)},
+  'con-avance':     {title:'Con avance entregado',     fn:u=>Object.values(u.progress).some(p=>p.text||(p.files&&p.files.length))},
+  'cartas':         {title:'Cartas firmadas',          fn:u=>!!u.commitmentSigned},
+  'ayuda':          {title:'Solicitudes de ayuda activas', fn:u=>hasActiveHelp(u)},
+  'aceptaron':      {title:'Aceptaron el reto',        fn:u=>u.challengeDecision==='accepted'},
+  'rechazo-otra':   {title:'Rechazaron · quieren otro problema', fn:u=>u.challengeDecision==='rejected' && u.rejectionWantsContinue===true},
+  'rechazo-retiran':{title:'Rechazaron · se retiran del reto',   fn:u=>u.challengeDecision==='rejected' && u.rejectionWantsContinue===false},
+  'puntaje':        {title:'Ranking por puntaje',      fn:_=>true, sort:(a,b)=>sumScore(b).total-sumScore(a).total}
+};
+function openKpiList(key){
+  KPI_FILTER = key;
+  goto('a-lista');
+}
+function renderKpiList(main){
+  const f = KPI_FILTERS[KPI_FILTER];
+  if(!f){ goto('a-tablero'); return; }
+  let rows = Object.values(DB.users).filter(isRealParticipant).filter(f.fn);
+  rows.sort(f.sort || ((a,b)=>a.name.localeCompare(b.name)));
+  main.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+      <div>
+        <h1 class="page-title">${escapeHTML(f.title)}</h1>
+        <p class="page-sub">${rows.length} participante${rows.length===1?'':'s'} cumple${rows.length===1?'':'n'} este filtro.</p>
+      </div>
+      <button class="btn btn--ghost btn--sm" onclick="goto('a-tablero')">← Volver al Tablero</button>
+    </div>
+    <div class="card">
+      ${rows.length===0 ? '<p class="muted">Aún no hay participantes en esta categoría.</p>' :
+      `<table><thead><tr><th>#</th><th>Participante</th><th>Área</th><th>Gerente</th><th>Estado</th><th>Ritmo</th><th>Avances</th><th>Puntaje</th><th></th></tr></thead><tbody>
+        ${rows.map((u,i)=>{
+          const weeks = Object.values(u.progress).filter(p=>p.text||p.files.length).length;
+          const sc = sumScore(u).total;
+          const mgr = DB.users[u.manager]; const mgrName = mgr?mgr.name:(u.manager||"—");
+          const pace = paceFor(u);
+          return `<tr class="${hasActiveHelp(u)?'help-active':''}">
+            <td>${i+1}${hasActiveHelp(u)?' 🚨':''}</td>
+            <td><strong>${escapeHTML(u.name)}</strong><div class="muted">${escapeHTML(u.cargo)} · ${escapeHTML(u.email)}</div></td>
+            <td>${escapeHTML(u.area)}</td>
+            <td>${escapeHTML(mgrName)}</td>
+            <td><span class="badge ${u.status==='aprobado'?'badge--green':u.status==='rechazado'?'badge--red':'badge--amber'}">${u.status}</span></td>
+            <td><span class="badge ${pace.cls}">${pace.label}</span></td>
+            <td>${weeks}/4</td>
+            <td><strong>${sc.toFixed(1)}</strong></td>
+            <td><button class="btn btn--ghost btn--sm" onclick="viewDetail('${u.email}','a-detalle')">Abrir</button></td>
+          </tr>`;
+        }).join("")}
+      </tbody></table>`}
+    </div>
+  `;
+}
 function renderAdminTablero(main){
   const all = Object.values(DB.users).filter(isRealParticipant);
   const aprob = all.filter(u=>u.status==="aprobado").length;
@@ -2179,10 +2238,19 @@ function renderAdminTablero(main){
   const onTrack = all.filter(u=>paceFor(u).cls==='badge--green').length;
   const atRisk = all.filter(u=>paceFor(u).cls==='badge--red').length;
   const healthPct = all.length ? Math.round(((onTrack+inscritosFull/2)/all.length)*100) : 0;
+  // Decisión del participante sobre el reto
+  const aceptaron       = all.filter(u=>u.challengeDecision==='accepted').length;
+  const rechazoOtra     = all.filter(u=>u.challengeDecision==='rejected' && u.rejectionWantsContinue===true).length;
+  const rechazoRetiran  = all.filter(u=>u.challengeDecision==='rejected' && u.rejectionWantsContinue===false).length;
 
   main.innerHTML = `
-    <h1 class="page-title">Tablero general · Reto IA</h1>
-    <p class="page-sub">Vista para Catherine Morales · Isabella Makowski. Aquí ves a las 37 personas inscritas.</p>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+      <div>
+        <h1 class="page-title">Tablero general · Reto IA</h1>
+        <p class="page-sub">Vista para Catherine Morales · Isabella Makowski. Aquí ves a las ${all.length} personas inscritas.</p>
+      </div>
+      <button class="btn btn--ghost btn--sm" onclick="refreshTablero()" title="Volver a traer datos del servidor">⟳ Actualizar</button>
+    </div>
 
     <div class="card" style="border-left:5px solid var(--vp-navy);background:linear-gradient(90deg,rgba(0,31,96,.04),transparent)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
@@ -2203,19 +2271,36 @@ function renderAdminTablero(main){
       </div>`}).join("")}
     </div>`:""}
 
-    <!-- KPIs (más visuales) -->
+    <!-- KPIs (más visuales) — clic para ver la lista de cada métrica -->
     <div class="grid g3" style="margin-top:1rem">
-      <div class="kpi" style="background:linear-gradient(135deg,#001F60,#002a80);color:#fff;border:none">
+      <div class="kpi kpi--click" onclick="openKpiList('puntaje')" title="Ver ranking completo" style="background:linear-gradient(135deg,#001F60,#002a80);color:#fff;border:none">
         <p class="label" style="color:rgba(255,255,255,.7)">Salud del reto</p>
         <div class="value" style="color:#00CE7C;font-size:2.4rem">${healthPct}<span style="font-size:1.2rem;color:rgba(255,255,255,.6)">%</span></div>
       </div>
-      <div class="kpi"><p class="label">A tiempo</p><div class="value" style="color:var(--vp-green-deep)">${onTrack}</div></div>
-      <div class="kpi"><p class="label">Atrasados</p><div class="value" style="color:var(--vp-red)">${atRisk}</div></div>
-      <div class="kpi"><p class="label">Promedio puntaje</p><div class="value">${avgScore.toFixed(1)}<span style="font-size:1rem;color:var(--vp-text-soft)">/100</span></div></div>
-      <div class="kpi"><p class="label">Inscripción 100%</p><div class="value">${inscritosFull}<span style="font-size:1rem;color:var(--vp-text-soft)">/${all.length}</span></div></div>
-      <div class="kpi"><p class="label">Con avance</p><div class="value">${conAvance}<span style="font-size:1rem;color:var(--vp-text-soft)">/${all.length}</span></div></div>
-      <div class="kpi"><p class="label">Cartas firmadas</p><div class="value">${cartas}<span style="font-size:1rem;color:var(--vp-text-soft)">/${all.length}</span></div></div>
-      <div class="kpi"><p class="label">Solicitudes ayuda</p><div class="value" style="color:${helpActive.length?'var(--vp-red)':'var(--vp-text-soft)'}">${helpActive.length}</div></div>
+      <div class="kpi kpi--click" onclick="openKpiList('a-tiempo')" title="Ver participantes a tiempo"><p class="label">A tiempo</p><div class="value" style="color:var(--vp-green-deep)">${onTrack}</div></div>
+      <div class="kpi kpi--click" onclick="openKpiList('atrasados')" title="Ver participantes atrasados"><p class="label">Atrasados</p><div class="value" style="color:var(--vp-red)">${atRisk}</div></div>
+      <div class="kpi kpi--click" onclick="openKpiList('puntaje')" title="Ver ranking por puntaje"><p class="label">Promedio puntaje</p><div class="value">${avgScore.toFixed(1)}<span style="font-size:1rem;color:var(--vp-text-soft)">/100</span></div></div>
+      <div class="kpi kpi--click" onclick="openKpiList('inscritos')" title="Ver inscritos 100%"><p class="label">Inscripción 100%</p><div class="value">${inscritosFull}<span style="font-size:1rem;color:var(--vp-text-soft)">/${all.length}</span></div></div>
+      <div class="kpi kpi--click" onclick="openKpiList('con-avance')" title="Ver quiénes han entregado avances"><p class="label">Con avance</p><div class="value">${conAvance}<span style="font-size:1rem;color:var(--vp-text-soft)">/${all.length}</span></div></div>
+      <div class="kpi kpi--click" onclick="openKpiList('cartas')" title="Ver cartas firmadas"><p class="label">Cartas firmadas</p><div class="value">${cartas}<span style="font-size:1rem;color:var(--vp-text-soft)">/${all.length}</span></div></div>
+      <div class="kpi kpi--click" onclick="openKpiList('ayuda')" title="Ver solicitudes de ayuda activas"><p class="label">Solicitudes ayuda</p><div class="value" style="color:${helpActive.length?'var(--vp-red)':'var(--vp-text-soft)'}">${helpActive.length}</div></div>
+    </div>
+
+    <!-- DECISIÓN DEL PARTICIPANTE SOBRE EL RETO -->
+    <h3 style="margin:1.25rem 0 .5rem;font-family:var(--fd);letter-spacing:.02em">Decisión sobre el reto</h3>
+    <div class="grid g3">
+      <div class="kpi kpi--click" onclick="openKpiList('aceptaron')" style="border-left:4px solid var(--vp-green)" title="Ver quiénes aceptaron el reto">
+        <p class="label">Aceptaron el reto</p>
+        <div class="value" style="color:var(--vp-green-deep)">${aceptaron}<span style="font-size:1rem;color:var(--vp-text-soft)">/${all.length}</span></div>
+      </div>
+      <div class="kpi kpi--click" onclick="openKpiList('rechazo-otra')" style="border-left:4px solid var(--vp-amber)" title="Ver quiénes rechazaron pero quieren otro problema">
+        <p class="label">Rechazo · quieren otro</p>
+        <div class="value" style="color:var(--vp-amber)">${rechazoOtra}<span style="font-size:1rem;color:var(--vp-text-soft)">/${all.length}</span></div>
+      </div>
+      <div class="kpi kpi--click" onclick="openKpiList('rechazo-retiran')" style="border-left:4px solid var(--vp-red)" title="Ver quiénes se retiran del reto">
+        <p class="label">Rechazo · se retiran</p>
+        <div class="value" style="color:var(--vp-red)">${rechazoRetiran}<span style="font-size:1rem;color:var(--vp-text-soft)">/${all.length}</span></div>
+      </div>
     </div>
 
     <!-- CHARTS -->
@@ -2253,6 +2338,22 @@ function renderAdminTablero(main){
   setTimeout(()=>{renderAdminCharts(all);renderAdminFeed();renderAdminMovers(all);}, 50);
 }
 
+async function refreshTablero(){
+  setSyncBadge && setSyncBadge('pulling');
+  try{ await pullRemote(); }catch(e){}
+  if(CURRENT_PAGE==='a-tablero') goto('a-tablero');
+  else if(CURRENT_PAGE==='a-lista') goto('a-lista');
+  toast && toast('Datos actualizados');
+}
+// Auto-refresco al volver a la pestaña / ventana
+if(!window.__tableroFocusBound){
+  window.__tableroFocusBound = true;
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden && SESSION && SESSION.activeRole==='admin' && (CURRENT_PAGE==='a-tablero'||CURRENT_PAGE==='a-lista')){
+      pullRemote().then(()=>goto(CURRENT_PAGE));
+    }
+  });
+}
 function renderAdminFeed(){
   const items = buildActivityFeed(20);
   const box = document.getElementById('adm-feed');
