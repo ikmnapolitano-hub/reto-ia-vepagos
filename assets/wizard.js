@@ -562,9 +562,7 @@
         '<div class="vp-wiz-dots"></div>' +
       '</div>' +
       '<div class="vp-wiz-foot">' +
-        '<div class="vp-wiz-foot__left">' +
-          '<label><input type="checkbox" class="vp-wiz-dontshow" /> No mostrarme esto otra vez</label>' +
-        '</div>' +
+        '<div class="vp-wiz-foot__left"></div>' +
         '<div class="vp-wiz-foot__nav">' +
           '<button class="vp-wiz-btn vp-wiz-btn--ghost vp-wiz-skip" type="button">Saltar</button>' +
           '<button class="vp-wiz-btn vp-wiz-btn--prev vp-wiz-prev" type="button">← Atrás</button>' +
@@ -588,22 +586,23 @@
     els.next   = overlay.querySelector('.vp-wiz-next');
     els.skip   = overlay.querySelector('.vp-wiz-skip');
     els.close  = overlay.querySelector('.vp-wiz-close');
-    els.dont   = overlay.querySelector('.vp-wiz-dontshow');
     els.foot   = overlay.querySelector('.vp-wiz-foot');
   }
 
   // ---------- 4. Estado ----------
+  // El tour se autoabre UNA sola vez en total (la primera vez que el
+  // participante entra al portal). Después solo se reabre desde el botón "?".
+  var GLOBAL_SEEN_KEY = 'vpWizardEverSeen';
   function isParticipant() {
     try { return window.SESSION && window.SESSION.activeRole === 'participant'; }
     catch (e) { return false; }
   }
-  function seenKey(page) { return 'vpTourSeen_' + page; }
-  function isSeen(page) {
-    try { return localStorage.getItem(seenKey(page)) === '1'; }
+  function isEverSeen() {
+    try { return localStorage.getItem(GLOBAL_SEEN_KEY) === '1'; }
     catch (e) { return false; }
   }
-  function markSeen(page) {
-    try { localStorage.setItem(seenKey(page), '1'); } catch (e) {}
+  function markEverSeen() {
+    try { localStorage.setItem(GLOBAL_SEEN_KEY, '1'); } catch (e) {}
   }
 
   // ---------- 5. Render tour ----------
@@ -631,8 +630,6 @@
 
     els.prev.disabled = stepIdx === 0;
     els.next.textContent = (stepIdx === tour.length - 1) ? '¡Listo!' : 'Siguiente →';
-    // El check "no mostrar otra vez" tiene más sentido en el primer paso
-    els.dont.checked = false;
 
     // scroll del cuerpo al tope
     var body = overlay.querySelector('.vp-wiz-body');
@@ -652,13 +649,9 @@
   }
 
   function closeTour() {
-    if (tourPage && els.dont && els.dont.checked) {
-      markSeen(tourPage);
-    } else if (tourPage) {
-      // Si cierra después de ver al menos el primer paso, marcamos como visto
-      // (así no se reabre solo, pero el "?" sigue disponible).
-      markSeen(tourPage);
-    }
+    // Al cerrar (por la X, Saltar, ¡Listo!, Esc o click afuera) marcamos
+    // como visto a nivel global: nunca más se autoabre. El botón "?" sigue.
+    markEverSeen();
     overlay.classList.remove('open');
     document.body.style.overflow = '';
     tour = null;
@@ -703,19 +696,25 @@
     var page = window.CURRENT_PAGE;
     var available = isParticipant() && page && TOURS[page];
     btn.style.display = available ? 'flex' : 'none';
-    // Pulso suave cuando hay tour disponible para una sección no vista
-    if (available && !isSeen(page)) btn.classList.add('vp-wiz-pulse');
+    // Pulso solo si el participante NUNCA ha visto el wizard. Una vez visto,
+    // el botón queda discreto.
+    if (available && !isEverSeen()) btn.classList.add('vp-wiz-pulse');
     else btn.classList.remove('vp-wiz-pulse');
   }
 
   // ---------- 7. Detectar cambios de página ----------
+  // Solo autoabre UNA vez en total (primera vez que el participante entra a
+  // cualquier sección con tour). Después: solo manual desde el botón "?".
   var lastPage = null;
+  var autoOpenedThisSession = false;
   function tick() {
     var page = window.CURRENT_PAGE;
-    if (page !== lastPage) {
+    var changed = page !== lastPage;
+    if (changed) {
       lastPage = page;
       refreshTopbarButton();
-      if (page && TOURS[page] && isParticipant() && !isSeen(page)) {
+      if (page && TOURS[page] && isParticipant() && !isEverSeen() && !autoOpenedThisSession) {
+        autoOpenedThisSession = true;
         setTimeout(function () {
           if (window.CURRENT_PAGE === page && !overlay.classList.contains('open')) {
             openTour(page);
@@ -773,10 +772,13 @@
     open: function (page) { if (TOURS[page]) openTour(page); },
     resetAll: function () {
       try {
+        localStorage.removeItem(GLOBAL_SEEN_KEY);
+        // limpiar también las claves antiguas por sección (compat)
         Object.keys(TOURS).forEach(function (k) {
-          localStorage.removeItem(seenKey(k));
+          localStorage.removeItem('vpTourSeen_' + k);
         });
       } catch (e) {}
+      autoOpenedThisSession = false;
     }
   };
 })();
