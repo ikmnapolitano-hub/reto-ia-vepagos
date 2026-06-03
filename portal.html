@@ -214,6 +214,17 @@ details[open] summary{margin-bottom:.5rem}
 #help-fab{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--vp-red);color:#fff;border:none;padding:.85rem 1.25rem;border-radius:999px;font-family:var(--fd);font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:.85rem;box-shadow:0 10px 30px rgba(220,38,38,.35);z-index:90;display:flex;align-items:center;gap:.5rem;transition:transform .15s,box-shadow .15s}
 #help-fab:hover{transform:translateY(-2px);box-shadow:0 14px 36px rgba(220,38,38,.45)}
 #help-fab.active{background:#991B1B}
+
+/* Notificaciones de comunidad (chat + DMs) — al lado de "Necesito ayuda" */
+#notif-fab{position:fixed;bottom:1.5rem;right:calc(1.5rem + 220px);background:var(--vp-navy);color:#fff;border:none;width:3.1rem;height:3.1rem;border-radius:50%;cursor:pointer;box-shadow:0 10px 30px rgba(0,31,96,.35);z-index:90;display:flex;align-items:center;justify-content:center;font-size:1.4rem;transition:transform .15s,box-shadow .15s}
+#notif-fab:hover{transform:translateY(-2px);box-shadow:0 14px 36px rgba(0,31,96,.45)}
+#notif-fab .notif-dot{position:absolute;top:-4px;right:-4px;background:#DC2626;color:#fff;font-family:var(--fd);font-weight:800;font-size:.7rem;min-width:1.25rem;height:1.25rem;border-radius:999px;padding:0 .35rem;display:flex;align-items:center;justify-content:center;border:2px solid #fff;line-height:1}
+#notif-fab.has-unread{animation:notif-pulse 2s ease-in-out infinite}
+@keyframes notif-pulse{0%,100%{box-shadow:0 10px 30px rgba(0,31,96,.35)}50%{box-shadow:0 10px 30px rgba(0,31,96,.35),0 0 0 8px rgba(0,206,124,.18)}}
+#notif-pop{position:fixed;bottom:5rem;right:calc(1.5rem + 220px);transform:translateX(50%);background:#fff;border:1px solid var(--vp-line);border-radius:12px;box-shadow:0 16px 50px rgba(0,0,0,.18);padding:.85rem 1rem;min-width:240px;max-width:300px;z-index:91;font-size:.85rem}
+#notif-pop .row{padding:.4rem 0;border-bottom:1px dashed var(--vp-line);display:flex;justify-content:space-between;gap:.5rem;align-items:center}
+#notif-pop .row:last-child{border-bottom:none}
+#notif-pop .row strong{font-weight:700}
 .modal{position:fixed;inset:0;background:rgba(0,31,96,.55);backdrop-filter:blur(4px);display:grid;place-items:center;padding:1rem;z-index:100}
 .modal-card{background:#fff;border-radius:var(--r-lg);padding:1.75rem;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
 
@@ -454,6 +465,9 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
 
   /* === HELP FAB — sobre bottom nav === */
   #help-fab{bottom:calc(74px + env(safe-area-inset-bottom));right:.85rem;padding:.7rem 1rem;font-size:.78rem;border-radius:999px;box-shadow:0 8px 22px rgba(220,38,38,.4)}
+  /* === NOTIF FAB en móvil — a la izquierda del de ayuda === */
+  #notif-fab{bottom:calc(74px + env(safe-area-inset-bottom));right:calc(.85rem + 195px);width:2.7rem;height:2.7rem;font-size:1.2rem}
+  #notif-pop{right:calc(.85rem + 195px);transform:translateX(40%);bottom:calc(74px + env(safe-area-inset-bottom) + 3.2rem)}
 
   /* === Login === */
   .login-wrap{padding:1rem;align-items:flex-start;padding-top:6vh}
@@ -701,6 +715,11 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
 
   <!-- Botón flotante de ayuda (solo participantes) -->
   <button id="help-fab" class="hidden" onclick="openHelpModal()" title="¿Estás trancado?">🚨 Necesito ayuda</button>
+
+  <!-- Bell de comunidad: chat público + DMs (solo participantes) -->
+  <button id="notif-fab" class="hidden" onclick="notifClick(event)" title="Mensajes y chat de la comunidad" aria-label="Notificaciones">
+    🔔<span class="notif-dot" id="notif-dot" style="display:none">0</span>
+  </button>
 
   <!-- Modal de ayuda -->
   <div id="help-modal" class="modal hidden" onclick="if(event.target===this)closeHelpModal()">
@@ -1085,7 +1104,7 @@ function saveDB(){
    (ej. abrir el HTML directo sin Netlify). */
 var REMOTE_URLS = ['/api/sync','/.netlify/functions/sync'];
 var REMOTE_URL = REMOTE_URLS[0]; // se actualiza al primer pull exitoso
-var POLL_MS = 10000;
+var POLL_MS = 60000;
 var lastRemoteTs = 0;
 var syncEnabled = true;
 var syncError = '';
@@ -1479,6 +1498,7 @@ function goto(page){
   window.scrollTo({top:0,behavior:"instant"});
   switch(page){
     case "resumen": renderResumen(main); break;
+    case "comunidad": renderComunidad(main); break;
     case "problema": renderProblema(main); break;
     case "avances": renderAvances(main); break;
     case "evaluacion": renderEvaluacion(main); break;
@@ -1551,15 +1571,24 @@ function quoteOfTheDay(){
   return QUOTES[dayIdx % QUOTES.length];
 }
 
-/* Ranking — orden por puntaje desc, desempate por avances + carta + términos */
+/* Líderes del programa — usan el portal pero NO compiten.
+   Siempre se ordenan al final del ranking (nunca pueden quedar primeros). */
+var LEADER_EMAILS = ['ikmnapolitano@gmail.com'];
+function isLeader(u){
+  if(!u || !u.email) return false;
+  return LEADER_EMAILS.indexOf(String(u.email).toLowerCase()) !== -1;
+}
+
+/* Ranking — orden por puntaje desc, desempate por avances + carta + términos.
+   Los líderes siempre van últimos (no compiten). */
 function rankedParticipants(){
   const all = Object.values(DB.users).filter(isRealParticipant);
   return all.map(u=>{
     const sc = sumScore(u).total;
     const weeks = Object.values(u.progress).filter(p=>p.text||p.files.length).length;
     const enr = enrollmentDone(u)?1:0;
-    return {u, sc, weeks, enr, ts: u.created||0};
-  }).sort((a,b)=> b.sc-a.sc || b.weeks-a.weeks || b.enr-a.enr || a.ts-b.ts);
+    return {u, sc, weeks, enr, ts: u.created||0, leader: isLeader(u)?1:0};
+  }).sort((a,b)=> a.leader-b.leader || b.sc-a.sc || b.weeks-a.weeks || b.enr-a.enr || a.ts-b.ts);
 }
 function myRank(email){
   const r = rankedParticipants();
@@ -1587,8 +1616,8 @@ function progressFor(u){
 }
 function progressRanked(){
   const all = Object.values(DB.users).filter(isRealParticipant);
-  return all.map(u=>({u, prog: progressFor(u), sc: sumScore(u).total, ts: u.created||0}))
-    .sort((a,b)=> b.prog-a.prog || b.sc-a.sc || a.ts-b.ts);
+  return all.map(u=>({u, prog: progressFor(u), sc: sumScore(u).total, ts: u.created||0, leader: isLeader(u)?1:0}))
+    .sort((a,b)=> a.leader-b.leader || b.prog-a.prog || b.sc-a.sc || a.ts-b.ts);
 }
 function myProgressRank(email){
   const r = progressRanked();
@@ -1838,8 +1867,12 @@ function renderResumen(main){
     ${helpBanner}
     ${statusBanner}
 
-    <!-- PROGRESO real (no depende de puntaje) -->
-    <div class="card">
+    <!-- PROGRESO real (no depende de puntaje) — clickeable: abre Comunidad -->
+    <div class="card" role="button" tabindex="0"
+         onclick="goto('comunidad')"
+         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goto('comunidad');}"
+         title="Abre la comunidad: ranking, perfiles y chat"
+         style="cursor:pointer">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.5rem">
         <div>
           <h3 style="margin:0">Tu progreso en el reto</h3>
@@ -1865,6 +1898,10 @@ function renderResumen(main){
         </div>
       </div>
       <p class="muted" style="font-size:.78rem;margin:.85rem 0 0">Cómo se mide: 20 pts por inscripción completa · 18 pts por cada semana entregada · 8 pts por no tener bloqueos abiertos. Promedio actual del grupo: <strong>${avgProg.toFixed(0)}%</strong>.</p>
+      <div style="margin-top:.6rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap">
+        <span class="muted" style="font-size:.78rem">👥 Toca para ver quiénes van delante, escribirles y entrar al chat de la comunidad</span>
+        <span class="badge badge--gray" style="font-size:.7rem">Abrir comunidad →</span>
+      </div>
     </div>
 
     <!-- PRÓXIMO RETO grande (1 acción concreta) -->
@@ -1977,6 +2014,386 @@ function renderMyHelpCard(u){
       </div>`;
     }).join("")}
   </div>`;
+}
+
+/* ============================================================
+ *  COMUNIDAD — ranking + perfiles + chat público + DMs
+ *  Datos viven en /api/community (store "reto-ia-community"),
+ *  TOTALMENTE separado del store de usuarios. Append-only.
+ * ============================================================ */
+
+var COMM_API = '/api/community';
+var COMM_STATE = {
+  tab: 'ranking',            // 'ranking' | 'chat' | 'dm'
+  chat: [],
+  chatLoadedAt: 0,
+  dmOther: '',               // email del participante en el panel DM
+  dmItems: [],
+  inbox: [],
+  pollTimer: null
+};
+
+async function commLoadChat(){
+  try{
+    const r = await fetch(COMM_API+'?kind=chat', {cache:'no-store'});
+    const j = await r.json();
+    COMM_STATE.chat = Array.isArray(j.items) ? j.items : [];
+    COMM_STATE.chatLoadedAt = Date.now();
+  }catch(e){ /* offline-friendly: dejamos el último estado */ }
+}
+async function commLoadInbox(me){
+  try{
+    const r = await fetch(COMM_API+'?kind=inbox&me='+encodeURIComponent(me), {cache:'no-store'});
+    const j = await r.json();
+    COMM_STATE.inbox = Array.isArray(j.items) ? j.items : [];
+  }catch(e){}
+}
+async function commLoadDM(me, other){
+  try{
+    const r = await fetch(COMM_API+'?kind=dm&a='+encodeURIComponent(me)+'&b='+encodeURIComponent(other), {cache:'no-store'});
+    const j = await r.json();
+    COMM_STATE.dmItems = Array.isArray(j.items) ? j.items : [];
+  }catch(e){}
+}
+async function commPostChat(me, name, text){
+  const r = await fetch(COMM_API+'?kind=chat', {
+    method:'POST',
+    headers:{'content-type':'application/json'},
+    body: JSON.stringify({fromEmail:me, fromName:name, text})
+  });
+  return r.ok ? r.json() : null;
+}
+async function commPostDM(me, name, other, text){
+  const r = await fetch(COMM_API+'?kind=dm', {
+    method:'POST',
+    headers:{'content-type':'application/json'},
+    body: JSON.stringify({fromEmail:me, fromName:name, toEmail:other, text})
+  });
+  return r.ok ? r.json() : null;
+}
+async function commHide(channel, id, byEmail){
+  const r = await fetch(COMM_API+'?kind=hide', {
+    method:'POST',
+    headers:{'content-type':'application/json'},
+    body: JSON.stringify({channel, id, byEmail})
+  });
+  return r.ok;
+}
+
+function commStopPolling(){
+  if(COMM_STATE.pollTimer){ clearInterval(COMM_STATE.pollTimer); COMM_STATE.pollTimer=null; }
+}
+function commStartPolling(me){
+  commStopPolling();
+  COMM_STATE.pollTimer = setInterval(async ()=>{
+    if(CURRENT_PAGE!=='comunidad'){ commStopPolling(); return; }
+    if(COMM_STATE.tab==='chat'){ await commLoadChat(); commRerender(); }
+    else if(COMM_STATE.tab==='dm' && COMM_STATE.dmOther){
+      await commLoadDM(me, COMM_STATE.dmOther); commRerender();
+    }
+    else { await commLoadInbox(me); commRerender(); }
+  }, 12000);
+}
+
+function commRerender(){
+  const main = document.getElementById('main-content');
+  if(!main || CURRENT_PAGE!=='comunidad') return;
+  renderComunidad(main);
+}
+
+function commProjectSnippet(u){
+  // Texto corto del proyecto en el reto. Preferimos el problema APROBADO/asignado
+  // por el comité (u.assignedProblem). Sólo si no hay, caemos al primero declarado.
+  const ap = (u.assignedProblem||'').trim();
+  const sol = (u.solution && (u.solution.text||u.solution.what)) || '';
+  const fallback = (u.problemas && u.problemas[0]) || '';
+  const txt = sol || ap || fallback || '';
+  return String(txt||'').slice(0, 180);
+}
+
+function renderComunidad(main){
+  const me = SESSION && SESSION.email;
+  const u = DB.users[me];
+  if(!u){ main.innerHTML = '<p class="muted">Inicia sesión para ver la comunidad.</p>'; return; }
+
+  const pr = myProgressRank(me);
+  const myProgress = pr.prog;
+  const myScore = sumScore(u).total;
+  const myPos = pr.position;
+  const total = pr.ranking.length;
+  const tab = COMM_STATE.tab;
+
+  // Cargas iniciales en background
+  if(tab==='chat' && !COMM_STATE.chatLoadedAt){ commLoadChat().then(commRerender); }
+  if(tab==='dm'  && !COMM_STATE.inbox.length){ commLoadInbox(me).then(commRerender); }
+  if(tab==='dm'  && COMM_STATE.dmOther && !COMM_STATE.dmItems.length){
+    commLoadDM(me, COMM_STATE.dmOther).then(commRerender);
+  }
+  commStartPolling(me);
+
+  const tabBtn = (id, label) => `<button class="btn ${tab===id?'btn--primary':'btn--ghost'} btn--sm" onclick="commGoTab('${id}')">${label}</button>`;
+
+  let body = '';
+  if(tab==='ranking') body = commRenderRanking(me, pr);
+  else if(tab==='chat') body = commRenderChat(me, u);
+  else if(tab==='dm')   body = commRenderDM(me, u);
+
+  main.innerHTML = `
+    <p class="page-sub" style="margin-top:0">
+      <button class="btn btn--ghost btn--sm" onclick="goto('resumen')">← Volver al inicio</button>
+    </p>
+
+    <div class="card" style="background:linear-gradient(135deg,#001F60,#003396);color:#fff;border:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+        <div>
+          <div style="font-family:var(--fd);font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:#00CE7C">👥 Comunidad del reto</div>
+          <h2 style="margin:.2rem 0 0;color:#fff">Vas en la posición ${myPos} de ${total}</h2>
+          <p style="margin:.3rem 0 0;color:rgba(255,255,255,.8);font-size:.92rem">Progreso ${Math.round(myProgress)}% · Puntaje ${myScore.toFixed(1)}/100</p>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.3rem">
+          <span class="badge badge--green">${myProgress>=80?'Vas adelante':myProgress>=40?'En carrera':'Empezando'}</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin:.8rem 0">
+      ${tabBtn('ranking','🏆 Ranking')}
+      ${tabBtn('chat','💬 Chat público')}
+      ${tabBtn('dm','✉️ Mensajes')}
+    </div>
+
+    ${body}
+
+    <p class="muted" style="font-size:.75rem;margin-top:1rem">
+      Esta vista es <strong>pública entre participantes del reto</strong>. Sé respetuoso. Los mensajes no se borran de la base de datos: si ocultas uno, queda registrado pero ya no se muestra.
+    </p>
+  `;
+}
+
+function commGoTab(t){ COMM_STATE.tab = t; commRerender(); }
+
+function commOpenDM(other){
+  COMM_STATE.tab = 'dm';
+  COMM_STATE.dmOther = other;
+  COMM_STATE.dmItems = [];
+  const me = SESSION.email;
+  commLoadDM(me, other).then(commRerender);
+}
+
+function commRenderRanking(me, pr){
+  const rows = pr.ranking;
+  return `
+    <div class="card">
+      <h3 style="margin:0 0 .25rem">Ranking de progreso</h3>
+      <p class="muted" style="margin:0 0 .75rem">Quiénes van delante, dónde vas tú y quiénes detrás. Toca cualquier nombre para ver su proyecto o escribirle.</p>
+      <div style="display:flex;flex-direction:column;gap:.4rem">
+        ${rows.map((r,i)=>{
+          const isMe = r.u.email===me;
+          const proj = commProjectSnippet(r.u);
+          return `<div class="card" style="margin:0;padding:.7rem .85rem;display:flex;align-items:center;gap:.85rem;background:${isMe?'rgba(0,206,124,.08)':'var(--vp-bg)'};border:${isMe?'1.5px solid var(--vp-green)':'1px solid var(--vp-line)'}">
+            <div style="font-family:var(--fd);font-weight:800;font-size:1.05rem;width:2.2rem;text-align:center;color:${i<3?'var(--vp-green-deep)':'var(--vp-navy)'}">${i+1}</div>
+            <div style="width:2.4rem;height:2.4rem;border-radius:50%;background:var(--vp-navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-family:var(--fd);font-size:.9rem;flex-shrink:0">${escapeHTML(initials(r.u.name))}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700">${escapeHTML(r.u.name)} ${isMe?'<span class="badge badge--green" style="font-size:.65rem">tú</span>':''}</div>
+              <div class="muted" style="font-size:.78rem">${escapeHTML(r.u.cargo||'')} · ${escapeHTML(r.u.area||'')}</div>
+              ${proj?`<div class="muted" style="font-size:.78rem;margin-top:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📌 ${escapeHTML(proj)}</div>`:''}
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-family:var(--fd);font-weight:800;color:var(--vp-green-deep)">${Math.round(r.prog)}%</div>
+              <div class="muted" style="font-size:.7rem">${r.sc.toFixed(1)}/100</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:.3rem;flex-shrink:0">
+              <button class="btn btn--ghost btn--sm" onclick="commShowProfile('${escapeAttr(r.u.email)}')">Ver</button>
+              ${!isMe?`<button class="btn btn--primary btn--sm" onclick="commOpenDM('${escapeAttr(r.u.email)}')">Escribir</button>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function commShowProfile(email){
+  const u = DB.users[email]; if(!u) return;
+  const sc = sumScore(u).total;
+  const prog = progressFor(u);
+  const weeksDone = Object.values(u.progress||{}).filter(p=>p.text||(p.files||[]).length).length;
+  // Mostramos el problema APROBADO/asignado por el comité. Si todavía no se ha
+  // asignado, mostramos los declarados (no aprobados) como referencia.
+  const approved = (u.assignedProblem||'').trim();
+  const projects = approved ? [approved] : (u.problemas||[]).slice(0,3);
+  const projectsLabel = approved
+    ? 'Problema aprobado por el comité:'
+    : 'Problema(s) propuesto(s) (aún sin aprobar):';
+  const sol = (u.solution && (u.solution.text||u.solution.what)) || '';
+  const html = `
+    <div style="display:flex;align-items:center;gap:.85rem;margin-bottom:.85rem">
+      <div style="width:3rem;height:3rem;border-radius:50%;background:var(--vp-navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-family:var(--fd)">${escapeHTML(initials(u.name))}</div>
+      <div>
+        <h3 style="margin:0">${escapeHTML(u.name)}</h3>
+        <div class="muted" style="font-size:.85rem">${escapeHTML(u.cargo||'')} · ${escapeHTML(u.area||'')}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.5rem;margin-bottom:.85rem">
+      <div style="text-align:center;padding:.5rem;background:var(--vp-bg-soft);border-radius:8px"><div style="font-family:var(--fd);font-size:1.2rem;font-weight:800;color:var(--vp-green-deep)">${Math.round(prog)}%</div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Progreso</div></div>
+      <div style="text-align:center;padding:.5rem;background:var(--vp-bg-soft);border-radius:8px"><div style="font-family:var(--fd);font-size:1.2rem;font-weight:800;color:var(--vp-navy)">${sc.toFixed(1)}</div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Puntaje</div></div>
+      <div style="text-align:center;padding:.5rem;background:var(--vp-bg-soft);border-radius:8px"><div style="font-family:var(--fd);font-size:1.2rem;font-weight:800;color:var(--vp-navy)">${weeksDone}/5</div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Semanas</div></div>
+    </div>
+    ${projects.length?`<div style="margin-bottom:.85rem"><strong>${escapeHTML(projectsLabel)}</strong><ul style="margin:.3rem 0 0;padding-left:1.2rem">${projects.map(p=>`<li>${escapeHTML(p)}</li>`).join('')}</ul></div>`:''}
+    ${sol?`<div style="margin-bottom:.85rem;padding:.6rem;background:var(--vp-bg-soft);border-radius:8px"><strong>Solución que está construyendo:</strong><div style="margin-top:.3rem;white-space:pre-wrap">${escapeHTML(sol)}</div></div>`:''}
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem">
+      ${u.email!==SESSION.email?`<button class="btn btn--primary" onclick="closeCommModal();commOpenDM('${escapeAttr(u.email)}')">✉️ Escribirle directo</button>`:''}
+      <button class="btn btn--ghost" onclick="closeCommModal()">Cerrar</button>
+    </div>
+  `;
+  openCommModal(html);
+}
+
+function openCommModal(html){
+  closeCommModal();
+  const wrap = document.createElement('div');
+  wrap.id = 'comm-modal';
+  wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9998;display:flex;align-items:center;justify-content:center;padding:1rem';
+  wrap.innerHTML = `<div style="background:var(--vp-bg);border-radius:14px;max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:1.25rem 1.4rem;box-shadow:0 20px 60px rgba(0,0,0,.35)">${html}</div>`;
+  wrap.addEventListener('click', e => { if(e.target===wrap) closeCommModal(); });
+  document.body.appendChild(wrap);
+}
+function closeCommModal(){ const e=document.getElementById('comm-modal'); if(e) e.remove(); }
+
+function commRenderChat(me, u){
+  const items = COMM_STATE.chat.filter(x=>!x.hidden);
+  const myName = u.name || 'Yo';
+  return `
+    <div class="card">
+      <h3 style="margin:0 0 .25rem">💬 Chat público de la comunidad</h3>
+      <p class="muted" style="margin:0 0 .75rem">Ideas, dudas y colaboraciones. Todos los participantes pueden leer y escribir.</p>
+
+      <div id="comm-chat-list" style="max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:.5rem;padding:.25rem 0">
+        ${items.length===0?'<p class="muted" style="text-align:center;padding:1.5rem 0">Aún no hay mensajes. Sé el primero en lanzar una idea 🚀</p>':items.map(m=>{
+          const mine = (m.fromEmail||'').toLowerCase()===me.toLowerCase();
+          return `<div style="padding:.7rem .85rem;border-radius:10px;background:${mine?'rgba(0,206,124,.10)':'var(--vp-bg-soft)'};border-left:3px solid ${mine?'var(--vp-green)':'var(--vp-navy)'}">
+            <div style="display:flex;justify-content:space-between;gap:.5rem;align-items:baseline;flex-wrap:wrap">
+              <strong style="font-size:.9rem">${escapeHTML(m.fromName||m.fromEmail||'—')} ${mine?'<span class="badge badge--green" style="font-size:.6rem">tú</span>':''}</strong>
+              <span class="muted" style="font-size:.7rem">${fmtDate(m.ts)}</span>
+            </div>
+            <div style="margin-top:.25rem;white-space:pre-wrap;word-break:break-word">${escapeHTML(m.text||'')}</div>
+            ${mine?`<div style="margin-top:.3rem"><button class="btn btn--ghost btn--sm" onclick="commHideMine('chat','${escapeAttr(m.id)}')">Ocultar</button></div>`:''}
+          </div>`;
+        }).join('')}
+      </div>
+
+      <div style="display:flex;gap:.5rem;margin-top:.85rem">
+        <textarea id="comm-chat-input" rows="2" maxlength="2000" placeholder="Comparte una idea, pide ayuda o propón una colaboración…" style="flex:1;padding:.6rem;border-radius:8px;border:1px solid var(--vp-line);font-family:inherit;font-size:.95rem;resize:vertical"></textarea>
+        <button class="btn btn--primary" onclick="commSendChat()">Enviar</button>
+      </div>
+    </div>
+  `;
+}
+
+async function commSendChat(){
+  const ta = document.getElementById('comm-chat-input');
+  if(!ta) return;
+  const txt = (ta.value||'').trim();
+  if(!txt){ toast('Escribe algo primero','info'); return; }
+  const me = SESSION.email;
+  const u = DB.users[me] || {};
+  ta.disabled = true;
+  const r = await commPostChat(me, u.name||me, txt);
+  ta.disabled = false;
+  if(!r || !r.ok){ toast('No pudimos enviar tu mensaje. Reintenta.','err'); return; }
+  ta.value = '';
+  await commLoadChat();
+  commRerender();
+  // Scroll al final
+  setTimeout(()=>{ const list=document.getElementById('comm-chat-list'); if(list) list.scrollTop=list.scrollHeight; },50);
+}
+
+async function commHideMine(channel, id){
+  if(!confirm('¿Ocultar este mensaje? Queda registrado en la base de datos pero ya no se mostrará.')) return;
+  const ok = await commHide(channel, id, SESSION.email);
+  if(!ok){ toast('No se pudo ocultar.','err'); return; }
+  if(channel==='chat'){ await commLoadChat(); }
+  else { await commLoadDM(SESSION.email, COMM_STATE.dmOther); }
+  commRerender();
+}
+
+function commRenderDM(me, u){
+  const inbox = COMM_STATE.inbox;
+  const other = COMM_STATE.dmOther;
+
+  const inboxHTML = `
+    <div class="card" style="${other?'flex:0 0 280px':'flex:1'};min-width:240px">
+      <h3 style="margin:0 0 .25rem">✉️ Conversaciones</h3>
+      <p class="muted" style="margin:0 0 .75rem;font-size:.82rem">Tus mensajes directos con otros participantes.</p>
+      ${inbox.length===0?'<p class="muted" style="font-size:.85rem">Aún no tienes conversaciones. Abre el Ranking y toca "Escribir" en alguien.</p>':inbox.map(s=>{
+        const ou = DB.users[s.other] || {name:s.other};
+        const active = s.other===other;
+        return `<div style="padding:.6rem .7rem;border-radius:8px;background:${active?'rgba(0,31,96,.08)':'var(--vp-bg-soft)'};border-left:3px solid ${active?'var(--vp-navy)':'transparent'};cursor:pointer;margin-bottom:.4rem" onclick="commOpenDM('${escapeAttr(s.other)}')">
+          <div style="display:flex;justify-content:space-between;gap:.4rem">
+            <strong style="font-size:.88rem">${escapeHTML(ou.name||s.other)}</strong>
+            <span class="muted" style="font-size:.7rem">${fmtDate(s.lastTs)}</span>
+          </div>
+          <div class="muted" style="font-size:.78rem;margin-top:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.lastFromMe?'Tú: ':''}${escapeHTML(s.lastText||'')}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+
+  let threadHTML = '';
+  if(other){
+    const ou = DB.users[other] || {name:other};
+    const items = COMM_STATE.dmItems.filter(x=>!x.hidden);
+    threadHTML = `
+      <div class="card" style="flex:1;min-width:260px">
+        <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem">
+          <div style="width:2.4rem;height:2.4rem;border-radius:50%;background:var(--vp-navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-family:var(--fd);font-size:.9rem">${escapeHTML(initials(ou.name||other))}</div>
+          <div style="flex:1">
+            <strong>${escapeHTML(ou.name||other)}</strong>
+            <div class="muted" style="font-size:.78rem">${escapeHTML(ou.cargo||'')} · ${escapeHTML(ou.area||'')}</div>
+          </div>
+          <button class="btn btn--ghost btn--sm" onclick="commShowProfile('${escapeAttr(other)}')">Ver perfil</button>
+        </div>
+        <div id="comm-dm-list" style="max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:.4rem;padding:.25rem 0">
+          ${items.length===0?'<p class="muted" style="text-align:center;padding:1rem 0;font-size:.88rem">Aún no han intercambiado mensajes. Rompe el hielo 👋</p>':items.map(m=>{
+            const mine = (m.fromEmail||'').toLowerCase()===me.toLowerCase();
+            return `<div style="display:flex;justify-content:${mine?'flex-end':'flex-start'}">
+              <div style="max-width:78%;padding:.55rem .75rem;border-radius:12px;background:${mine?'var(--vp-green)':'var(--vp-bg-soft)'};color:${mine?'#fff':'inherit'}">
+                <div style="white-space:pre-wrap;word-break:break-word">${escapeHTML(m.text||'')}</div>
+                <div style="font-size:.7rem;opacity:.75;margin-top:.2rem;text-align:right">${fmtDate(m.ts)}</div>
+                ${mine?`<div style="text-align:right;margin-top:.15rem"><button class="btn btn--ghost btn--sm" style="font-size:.65rem;padding:.1rem .4rem;color:${mine?'#fff':'inherit'};border-color:rgba(255,255,255,.4)" onclick="commHideMine('dm:${escapeAttr([me.toLowerCase(),other.toLowerCase()].sort().join('__'))}','${escapeAttr(m.id)}')">Ocultar</button></div>`:''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div style="display:flex;gap:.5rem;margin-top:.6rem">
+          <textarea id="comm-dm-input" rows="2" maxlength="2000" placeholder="Escríbele a ${escapeAttr(ou.name||other)}…" style="flex:1;padding:.6rem;border-radius:8px;border:1px solid var(--vp-line);font-family:inherit;font-size:.95rem;resize:vertical"></textarea>
+          <button class="btn btn--primary" onclick="commSendDM()">Enviar</button>
+        </div>
+      </div>
+    `;
+  }
+
+  return `<div style="display:flex;gap:.85rem;flex-wrap:wrap;align-items:flex-start">${inboxHTML}${threadHTML}</div>`;
+}
+
+async function commSendDM(){
+  const ta = document.getElementById('comm-dm-input');
+  if(!ta) return;
+  const txt = (ta.value||'').trim();
+  if(!txt){ toast('Escribe algo primero','info'); return; }
+  const me = SESSION.email;
+  const u = DB.users[me] || {};
+  const other = COMM_STATE.dmOther;
+  if(!other){ toast('Elige una conversación','info'); return; }
+  ta.disabled = true;
+  const r = await commPostDM(me, u.name||me, other, txt);
+  ta.disabled = false;
+  if(!r || !r.ok){ toast('No pudimos enviar el mensaje.','err'); return; }
+  ta.value = '';
+  await commLoadDM(me, other);
+  await commLoadInbox(me);
+  commRerender();
+  setTimeout(()=>{ const list=document.getElementById('comm-dm-list'); if(list) list.scrollTop=list.scrollHeight; },50);
 }
 
 function renderProblema(main){
