@@ -706,3 +706,147 @@ h3 {
 
 /* ===== UTILITIES ===== */
 ::selection { background: var(--vp-green); color: var(--vp-navy); }
+
+/* =========================================================
+   MOBILE OPTIMIZATIONS — celular primero
+   Touch targets ≥44px · inputs ≥16px (sin zoom iOS)
+   Tipografía y spacing reescalados para pantallas pequeñas
+   ========================================================= */
+@media (max-width: 720px) {
+  body { font-size: 16px; line-height: 1.55; }
+
+  /* Banner superior · acceso al portal */
+  body > div[style*="background:#001F60"]:first-child {
+    padding: .55rem .85rem !important;
+    font-size: .82rem !important;
+    line-height: 1.35 !important;
+  }
+
+  /* NAV — más compacto, logo + CTA prominente */
+  .nav__inner { padding: .65rem 1rem; gap: .5rem; }
+  .nav__logo img { height: 26px; }
+  .nav__cta {
+    padding: .55rem .9rem !important;
+    font-size: .8rem !important;
+    letter-spacing: .03em;
+  }
+
+  /* HERO — mucho más compacto y legible */
+  .hero { padding: 2rem 0 1.75rem; }
+  .hero__inner { gap: 1.5rem; }
+  h1 {
+    font-size: clamp(2rem, 9vw, 2.6rem);
+    line-height: 1.08;
+    margin-bottom: 1rem;
+  }
+  .lede { font-size: 1.02rem; line-height: 1.5; }
+  .hero__cta { flex-direction: column; gap: .65rem; margin-top: 1.25rem; }
+  .hero__cta .btn { width: 100%; padding: 1rem 1.25rem; font-size: 1rem; }
+  .hero__meta {
+    grid-template-columns: repeat(3, 1fr);
+    gap: .65rem;
+    margin-top: 1.75rem;
+    padding-top: 1.25rem;
+  }
+  .hero__meta strong { font-size: .65rem; letter-spacing: .1em; }
+  .hero__meta span { font-size: 1rem; }
+
+  /* SECTIONS — menos padding vertical */
+  .section { padding: 2.5rem 0; }
+  h2 { font-size: clamp(1.6rem, 6vw, 2rem); line-height: 1.15; }
+  h3 { font-size: 1.1rem; }
+  .prose, .lede { font-size: 1rem; }
+  .eyebrow { font-size: .72rem; letter-spacing: .14em; margin-bottom: .6rem; }
+
+  /* BENEFITS / CARDS — stack vertical con buen aire */
+  .benefits, .cards, .projects, .areas, .links {
+    margin-top: 1.75rem;
+    gap: .85rem;
+  }
+  .benefit, .card, .project, .area, .link-card {
+    padding: 1.35rem 1.2rem;
+  }
+  .benefit h3, .card h3, .link-card h3 { font-size: 1.05rem; }
+  .benefit__icon { font-size: 1.7rem; }
+  .project__num { font-size: 1.65rem; }
+
+  /* TIMELINE — más estrecho y legible */
+  .timeline { margin-top: 1.75rem; }
+  .timeline::before { left: 50px; }
+  .timeline__item {
+    grid-template-columns: 60px 1fr;
+    gap: 1rem;
+    padding: .75rem 0;
+  }
+  .timeline__item::before { left: 44px; width: 12px; height: 12px; }
+  .timeline__date { font-size: .9rem; padding-top: .3rem; }
+  .timeline__body h3 { font-size: 1.02rem; }
+  .timeline__body p { font-size: .94rem; }
+
+  /* RÚBRICA — más compacta */
+  .rubric { margin-top: 1.75rem; border-radius: 14px; }
+  .rubric__row {
+    grid-template-columns: 56px 1fr;
+    padding: 1.1rem 1.1rem;
+    gap: .85rem;
+    align-items: center;
+  }
+  .rubric__weight { font-size: 2rem; }
+  .rubric__body h3 { font-size: 1.1rem; }
+  .rubric__body p { font-size: .92rem; }
+
+  /* TERMS (sección oscura) */
+  .terms { margin-top: 1.75rem; gap: .75rem; }
+  .terms li { padding: 1rem 1.15rem; font-size: .95rem; }
+
+  /* FORM — inputs 16px+, full-width botones */
+  .form {
+    margin-top: 1.5rem;
+    padding: 1.25rem 1.1rem;
+    border-radius: 16px;
+  }
+  .form__grid { gap: 1rem; }
+  .field input[type="text"],
+  .field input[type="email"],
+  .field select,
+  .field textarea {
+    font-size: 16px;       /* evita zoom automático en iOS */
+    padding: .95rem 1rem;
+    border-radius: 12px;
+  }
+  .field span { font-size: .78rem; letter-spacing: .04em; }
+  .field--check {
+    grid-template-columns: 24px 1fr;
+    padding: .85rem 1rem;
+    gap: .65rem;
+  }
+  .field--check input[type="checkbox"] {
+    width: 22px; height: 22px;
+    margin-top: 1px;
+  }
+  .field--check span { font-size: .92rem; }
+  .form__hint { font-size: .88rem; padding: .85rem 1rem; }
+  .form .btn {
+    width: 100%;
+    padding: 1.05rem 1.25rem;
+    font-size: 1rem;
+  }
+  .form__note { font-size: .8rem; }
+
+  /* CTAs en general — alto mínimo touch */
+  .btn { padding: .95rem 1.4rem; min-height: 48px; }
+
+  /* FOOTER — apilado */
+  .footer { padding: 1.75rem 0; }
+  .footer__brand { gap: .75rem; }
+  .footer__brand p { font-size: .8rem; line-height: 1.5; }
+  .footer__meta { font-size: .75rem; }
+}
+
+/* Pantalla muy pequeña (iPhone SE etc.) */
+@media (max-width: 380px) {
+  h1 { font-size: 1.85rem; }
+  .hero__meta { grid-template-columns: 1fr 1fr; }
+  .hero__meta div:last-child { grid-column: 1 / -1; }
+  .nav__cta { font-size: .72rem !important; padding: .45rem .7rem !important; }
+}

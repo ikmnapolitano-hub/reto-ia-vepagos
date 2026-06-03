@@ -362,7 +362,7 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
           <label>Contraseña</label>
           <input type="password" id="li-pass" required autocomplete="current-password" placeholder="123456"/>
         </div>
-        <button type="submit" class="btn btn--primary btn--block">Ingresar</button>
+        <button type="submit" id="li-btn" class="btn btn--primary btn--block">Ingresar</button>
       </form>
       <p style="margin-top:1rem;text-align:center"><a href="#" onclick="event.preventDefault();openForgotModal()" style="color:var(--vp-green-deep);font-size:.9rem">¿Olvidaste tu contraseña?</a></p>
       <p class="muted" style="margin-top:.5rem;text-align:center;font-size:.85rem">¿No te inscribiste? Avisa a Catherine Morales o Isabella.</p>
@@ -388,10 +388,13 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
 <!-- ============= APP ============= -->
 <div id="app-view" class="hidden">
   <div class="topbar">
-    <div style="display:flex;align-items:center;gap:1rem">
+    <div style="display:flex;align-items:center;gap:.75rem">
+      <button id="mobile-menu-btn" class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Abrir menú">
+        <span></span><span></span><span></span>
+      </button>
       <img src="assets/vepagos-logo-white.png" alt="Vepagos" style="height:26px;width:auto"/>
-      <span style="opacity:.5;font-size:1.2rem">|</span>
-      <strong style="font-family:var(--fd);letter-spacing:.04em;text-transform:uppercase;font-size:.95rem">Portal Reto IA</strong>
+      <span class="topbar-sep">|</span>
+      <strong class="topbar-title">Portal Reto IA</strong>
     </div>
     <div class="user">
       <div style="text-align:right">
@@ -405,7 +408,8 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
   </div>
 
   <div class="layout">
-    <aside class="sidebar">
+    <div id="sidebar-backdrop" class="sidebar-backdrop" onclick="toggleSidebar(false)"></div>
+    <aside class="sidebar" id="sidebar">
       <div class="role-switcher hidden" id="role-switcher">
         <label>Vista</label>
         <select id="role-select" onchange="switchRole(this.value)"></select>
@@ -473,6 +477,9 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
       </div>
     </div>
   </div>
+
+  <!-- Bottom nav móvil (solo se ve en pantallas pequeñas; rol-dinámico vía JS) -->
+  <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Navegación rápida"></nav>
 </div>
 
 <script>
@@ -902,14 +909,23 @@ function submitForgot(){
   setTimeout(closeForgotModal, 2500);
 }
 
-function doLogin(){
+async function doLogin(){
   const email = document.getElementById("li-email").value.trim().toLowerCase();
   const pass = document.getElementById("li-pass").value;
-  const u = DB.users[email];
   const errBox = document.getElementById("login-err");
   errBox.classList.add("hidden");
+  // CRÍTICO: sincronizar con el servidor compartido ANTES de validar la clave.
+  // Sin esto, un navegador nuevo solo conoce la semilla local (pass="123456") y
+  // ningún cambio de clave hecho en otro navegador se respeta. Bloqueamos el
+  // login hasta tener la DB remota — así la clave es la misma en todos lados.
+  const btn = document.getElementById("li-btn");
+  const prevTxt = btn ? btn.textContent : "";
+  if(btn){ btn.disabled = true; btn.textContent = "Verificando…"; }
+  try{ await pullRemote(); }catch(e){}
+  if(btn){ btn.disabled = false; btn.textContent = prevTxt; }
+  const u = DB.users[email];
   if(!u){errBox.textContent="Ese correo no está registrado en el reto."; errBox.classList.remove("hidden"); return;}
-  if(u.pass !== pass){errBox.textContent="Contraseña incorrecta. Si es tu primer ingreso, prueba 123456."; errBox.classList.remove("hidden"); return;}
+  if(u.pass !== pass){errBox.textContent="Contraseña incorrecta. Si olvidaste tu clave, usa \"¿Olvidaste tu clave?\" abajo para que te la reseteemos."; errBox.classList.remove("hidden"); return;}
   // Determinar roles posibles
   const roles = rolesFor(email);
   SESSION = {email, activeRole: roles[0]};
@@ -1046,8 +1062,52 @@ function applyRoleUI(){
   } else if(fbPill) {
     fbPill.classList.add("hidden");
   }
+  // Bottom nav móvil — 5 atajos críticos según rol
+  renderBottomNav();
 }
 function defaultPage(){return SESSION.activeRole==="admin"?"a-tablero":SESSION.activeRole==="manager"?"g-equipo":"resumen";}
+
+function renderBottomNav(){
+  const el = document.getElementById("mobile-bottom-nav");
+  if(!el) return;
+  const r = SESSION && SESSION.activeRole;
+  let items = [];
+  if(r==="participant"){
+    const u = DB.users[SESSION.email] || {};
+    const lastRead = u.lastFeedbackRead || 0;
+    const unread = (u.feedback||[]).filter(f=>f.ts>lastRead).length;
+    items = [
+      {p:"resumen",   i:"🏠", l:"Inicio"},
+      {p:"avances",   i:"📈", l:"Avances"},
+      {p:"feedback",  i:"💬", l:"Feedback", n:unread},
+      {p:"recursos",  i:"📚", l:"Recursos"},
+      {p:"_menu",     i:"☰",  l:"Más"},
+    ];
+  } else if(r==="manager"){
+    items = [
+      {p:"g-equipo",  i:"👥", l:"Equipo"},
+      {p:"recursos",  i:"📚", l:"Recursos"},
+      {p:"cuenta",    i:"👤", l:"Cuenta"},
+      {p:"_menu",     i:"☰",  l:"Más"},
+    ];
+  } else if(r==="admin"){
+    const n = Object.values(DB.users).filter(hasActiveHelp).length;
+    items = [
+      {p:"a-tablero",      i:"📊", l:"Tablero"},
+      {p:"a-participantes",i:"👥", l:"Personas"},
+      {p:"a-ayuda",        i:"🚨", l:"Ayuda", n:n},
+      {p:"a-resumen",      i:"📅", l:"Hoy"},
+      {p:"_menu",          i:"☰",  l:"Más"},
+    ];
+  }
+  el.innerHTML = items.map(it=>{
+    const badge = (it.n && it.n>0) ? `<span class="mob-tab-badge">${it.n>99?"99+":it.n}</span>` : "";
+    if(it.p==="_menu"){
+      return `<button class="mob-tab" onclick="toggleSidebar(true)" aria-label="${it.l}"><span class="mob-tab-i">${it.i}</span><span class="mob-tab-l">${it.l}</span></button>`;
+    }
+    return `<button class="mob-tab${CURRENT_PAGE===it.p?' active':''}" data-page="${it.p}" onclick="goto('${it.p}')" aria-label="${it.l}"><span class="mob-tab-i">${it.i}${badge}</span><span class="mob-tab-l">${it.l}</span></button>`;
+  }).join("");
+}
 
 function goto(page){
   CURRENT_PAGE = page;
@@ -1084,6 +1144,25 @@ function goto(page){
     case "a-config": renderAdminConfig(main); break;
   }
   applyRoleUI(); // refrescar FAB/pill cada navegación
+  // Cerrar drawer móvil al navegar
+  toggleSidebar(false);
+  // Actualizar bottom nav (resaltar tab activa)
+  document.querySelectorAll(".mob-tab").forEach(t=>{
+    t.classList.toggle("active", t.dataset.page===page);
+  });
+}
+
+/* ---------- Mobile sidebar drawer ---------- */
+function toggleSidebar(force){
+  const sb = document.getElementById("sidebar");
+  const bd = document.getElementById("sidebar-backdrop");
+  const btn = document.getElementById("mobile-menu-btn");
+  if(!sb||!bd) return;
+  const open = (typeof force === "boolean") ? force : !sb.classList.contains("open");
+  sb.classList.toggle("open", open);
+  bd.classList.toggle("show", open);
+  if(btn) btn.classList.toggle("open", open);
+  document.body.style.overflow = open ? "hidden" : "";
 }
 
 /* ---------- 5.a · GAMIFICACIÓN ---------- */
@@ -3766,7 +3845,13 @@ function toast(msg, kind){
 }
 
 /* ---------- 9. INIT ---------- */
-if(!tryRestore()){/* show login */}
+if(!tryRestore()){
+  // No hay sesión activa: pre-cargamos la DB remota en segundo plano
+  // para que el formulario de login valide contra las claves reales
+  // (no contra la semilla local pass="123456") aunque el usuario teclee
+  // tan rápido que llegue antes que el await dentro de doLogin().
+  pullRemote().catch(()=>{});
+}
 </script>
 
 <!-- Wizard global · tutorial amigable -->
