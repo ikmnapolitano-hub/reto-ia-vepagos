@@ -124,6 +124,15 @@ tr:hover td{background:var(--vp-bg-soft)}
 .swatch .info{padding:.55rem .75rem;background:#fff;font-size:.78rem}
 .swatch .info strong{display:block;font-family:var(--fd);font-size:.9rem;letter-spacing:.02em}
 
+.logo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.7rem}
+.logo-tile{display:flex;flex-direction:column;border-radius:10px;overflow:hidden;border:1px solid var(--vp-line);background:#fff}
+.logo-tile.dark{background:var(--vp-navy);border-color:var(--vp-navy)}
+.logo-tile img{width:100%;height:90px;object-fit:contain;padding:.7rem;display:block}
+.logo-tile__lbl{font-size:.74rem;font-family:var(--fd);text-transform:uppercase;letter-spacing:.04em;color:var(--vp-text-2);padding:.45rem .6rem .15rem;background:#fff;line-height:1.3}
+.logo-tile.dark .logo-tile__lbl{background:#fff}
+.logo-tile__dl{display:block;text-align:center;padding:.35rem .6rem .55rem;background:#fff;font-size:.78rem;font-weight:700;color:var(--vp-navy);text-decoration:none;letter-spacing:.02em}
+.logo-tile__dl:hover{color:var(--vp-green);background:#F6F8FB}
+
 .feedback-thread{margin-top:.75rem;max-height:300px;overflow-y:auto}
 .feedback-item{padding:.7rem .85rem;background:var(--vp-bg-soft);border-left:3px solid var(--vp-green);border-radius:6px;margin-bottom:.6rem;font-size:.88rem}
 .feedback-item .who{font-weight:700;color:var(--vp-navy)}
@@ -1734,9 +1743,22 @@ function renderMarca(main){
   markVisit('marca');
   main.innerHTML = `
     <h1 class="page-title">Manual de marca</h1>
-    <p class="page-sub">Usa estos colores, tipografías y logos en todo lo que entregues. El look & feel también pesa en la evaluación final.</p>
+    <p class="page-sub">La "cara" oficial de Vepagos. Aquí están las reglas visuales que hacen que algo se vea (y se sienta) Vepagos.</p>
+    <div class="card" style="background:linear-gradient(135deg,#E5E9F2 0%,#F6F8FB 100%);border-left:4px solid var(--vp-green)">
+      <h3 style="margin-top:0">¿Qué es un manual de marca y por qué te importa?</h3>
+      <p style="margin:.4rem 0;color:var(--vp-text-2)">Un <strong>manual de marca</strong> es el documento que define cómo se ve y cómo habla una empresa para que <em>siempre</em> se vea y suene igual: mismos colores, misma tipografía, mismo logo, mismo tono. Como un uniforme: cualquiera que vea un correo, una presentación, una pantalla o un volante reconoce de inmediato que es de Vepagos.</p>
+      <p style="margin:.4rem 0;color:var(--vp-text-2)">¿Por qué importa en el Reto? Porque todo lo que entregues (presentación, prototipo, video, documento) debe verse Vepagos. <strong>El look &amp; feel pesa en la evaluación final</strong> (5 pts). No tienes que ser diseñador: solo seguir las cuatro reglas de abajo.</p>
+      <p style="margin:.4rem 0 0;color:var(--vp-text-2)"><strong>Las 4 reglas básicas:</strong></p>
+      <ol style="margin:.3rem 0 0;padding-left:1.2rem;color:var(--vp-text-2)">
+        <li><strong>Colores:</strong> usa solo los de la paleta (verde, navy, blanco y los grises suaves).</li>
+        <li><strong>Tipografía:</strong> Bahnschrift para títulos, Barlow / Barlow Condensed en digital.</li>
+        <li><strong>Logos:</strong> descarga los oficiales de aquí abajo. No los estires, no les cambies el color.</li>
+        <li><strong>Tono:</strong> claro, directo y con datos. Como hablamos con un cliente real.</li>
+      </ol>
+    </div>
     <div class="card">
       <h3>Colores corporativos</h3>
+      <p class="muted" style="margin:.2rem 0 .8rem">Estos son los únicos colores que debes usar. Cópialos con el código HEX (lo pegas en PowerPoint, Figma, Canva o donde estés diseñando).</p>
       <div class="grid g3">
         <div class="swatch"><div class="color" style="background:#00CE7C"></div><div class="info"><strong>Verde Vepagos</strong>HEX #00CE7C · RGB 0/206/124</div></div>
         <div class="swatch"><div class="color" style="background:#00B36C"></div><div class="info"><strong>Verde Vepagos profundo</strong>HEX #00B36C · uso hover/acentos</div></div>
@@ -1748,6 +1770,7 @@ function renderMarca(main){
     </div>
     <div class="card">
       <h3>Tipografía</h3>
+      <p class="muted" style="margin:.2rem 0 .8rem">La tipografía es la "letra" oficial. Hay dos: una para títulos grandes (Condensed, más alta y angosta) y otra para los textos normales.</p>
       <div class="split">
         <div class="font-sample">
           <div class="label">Display · Barlow Condensed (sustituto de Bahnschrift)</div>
@@ -1761,22 +1784,64 @@ function renderMarca(main){
       <p class="muted" style="margin-top:.75rem">Oficial corporativa: <strong>Bahnschrift</strong>. En digital usamos Barlow / Barlow Condensed como sustituto geométrico cercano.</p>
     </div>
     <div class="card">
-      <h3>Logos</h3>
-      <div class="split">
-        <div style="padding:1.5rem;background:var(--vp-navy);border-radius:10px;display:grid;place-items:center"><img src="assets/vepagos-logo-white.png" style="max-height:80px"/></div>
-        <div style="padding:1.5rem;background:#fff;border:1px solid var(--vp-line);border-radius:10px;display:grid;place-items:center"><img src="assets/vepagos-logo.png" style="max-height:80px"/></div>
+      <h3>Logos oficiales</h3>
+      <p class="muted" style="margin:.2rem 0 .8rem">Descarga el logo desde aquí (no lo bajes de Google, ni lo recortes de otro documento). Tenemos 20 variantes oficiales para que siempre haya una que combine con tu fondo.</p>
+      <div style="background:#F6F8FB;border:1px dashed var(--vp-line);border-radius:10px;padding:.7rem .9rem;margin-bottom:1rem;font-size:.92rem;color:var(--vp-text-2)">
+        <strong>¿Cuál uso?</strong> Hay <strong>tres familias</strong>: <em>(1) Wordmark</em> = la palabra VEPAGOS sola. <em>(2) Wordmark con tagline</em> = VEPAGOS + "Tu negocio vende más" (úsalo cuando quieras reforzar el mensaje). <em>(3) Isotipo</em> = solo la "P" (úsalo en avatares, íconos, favicons, sellos). Y para cada familia hay 5 colores: <strong>verde, navy, negro, bicolor</strong> (sobre fondos claros) y <strong>blanco</strong> (sobre fondos oscuros).
       </div>
-      <p class="muted" style="margin-top:.75rem">Sobre fondos oscuros (navy) usa la versión <strong>blanca</strong>. Sobre fondos claros usa la <strong>versión a color</strong>. Respeta área de seguridad mínima = altura del isotipo.</p>
-      <div style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap">
-        <a class="btn btn--ghost btn--sm" download href="assets/vepagos-logo.png">⬇ Logo completo (color)</a>
-        <a class="btn btn--ghost btn--sm" download href="assets/vepagos-logo-white.png">⬇ Logo blanco PNG</a>
-        <a class="btn btn--ghost btn--sm" download href="assets/vepagos-logo-white-navy.png">⬇ Logo blanco sobre navy</a>
-        <a class="btn btn--ghost btn--sm" download href="assets/vepagos-logo-mark.png">⬇ Isotipo PNG</a>
-        <a class="btn btn--ghost btn--sm" download href="assets/vepagos-logo-mark-white.png">⬇ Isotipo blanco</a>
+
+      <h4 style="margin:1rem 0 .5rem;font-family:var(--vp-font-cond);text-transform:uppercase;letter-spacing:.04em;color:var(--vp-navy);font-size:1rem">1 · Wordmark (sin tagline)</h4>
+      <p class="muted" style="margin:0 0 .6rem">Versión más usada. Limpia, sin texto extra.</p>
+      <div class="logo-grid">
+        <div class="logo-tile light"><img src="assets/brand/wordmark-green.png"/><span class="logo-tile__lbl">Verde · fondo claro</span><a class="logo-tile__dl" download href="assets/brand/wordmark-green.png">⬇ PNG</a></div>
+        <div class="logo-tile light"><img src="assets/brand/wordmark-navy.png"/><span class="logo-tile__lbl">Navy · fondo claro</span><a class="logo-tile__dl" download href="assets/brand/wordmark-navy.png">⬇ PNG</a></div>
+        <div class="logo-tile light"><img src="assets/brand/wordmark-black.png"/><span class="logo-tile__lbl">Negro · fondo claro</span><a class="logo-tile__dl" download href="assets/brand/wordmark-black.png">⬇ PNG</a></div>
+        <div class="logo-tile light"><img src="assets/brand/wordmark-duotone.png"/><span class="logo-tile__lbl">Bicolor (VE verde · PAGOS navy)</span><a class="logo-tile__dl" download href="assets/brand/wordmark-duotone.png">⬇ PNG</a></div>
+        <div class="logo-tile dark"><img src="assets/brand/wordmark-white.png"/><span class="logo-tile__lbl">Blanco · fondo oscuro</span><a class="logo-tile__dl" download href="assets/brand/wordmark-white.png">⬇ PNG</a></div>
+      </div>
+
+      <h4 style="margin:1.4rem 0 .5rem;font-family:var(--vp-font-cond);text-transform:uppercase;letter-spacing:.04em;color:var(--vp-navy);font-size:1rem">2 · Wordmark con tagline · "Tu negocio vende más"</h4>
+      <p class="muted" style="margin:0 0 .6rem">Cuando necesitas que el mensaje aparezca con el logo (presentaciones, portadas, piezas de marketing). Algunas versiones incluyen el RIF <code>J-411024449</code> — úsalas en documentos oficiales (cotizaciones, contratos, facturas).</p>
+      <div class="logo-grid">
+        <div class="logo-tile light"><img src="assets/brand/wordmark-tagline-green.png"/><span class="logo-tile__lbl">Verde + tagline</span><a class="logo-tile__dl" download href="assets/brand/wordmark-tagline-green.png">⬇ PNG</a></div>
+        <div class="logo-tile light"><img src="assets/brand/wordmark-tagline-navy.png"/><span class="logo-tile__lbl">Navy + tagline</span><a class="logo-tile__dl" download href="assets/brand/wordmark-tagline-navy.png">⬇ PNG</a></div>
+        <div class="logo-tile light"><img src="assets/brand/wordmark-tagline-black.png"/><span class="logo-tile__lbl">Negro + tagline</span><a class="logo-tile__dl" download href="assets/brand/wordmark-tagline-black.png">⬇ PNG</a></div>
+        <div class="logo-tile light"><img src="assets/brand/wordmark-tagline-duotone.png"/><span class="logo-tile__lbl">Bicolor + tagline</span><a class="logo-tile__dl" download href="assets/brand/wordmark-tagline-duotone.png">⬇ PNG</a></div>
+        <div class="logo-tile dark"><img src="assets/brand/wordmark-tagline-white.png"/><span class="logo-tile__lbl">Blanco + tagline</span><a class="logo-tile__dl" download href="assets/brand/wordmark-tagline-white.png">⬇ PNG</a></div>
+      </div>
+      <p class="muted" style="margin:.8rem 0 .4rem"><strong>Variantes con RIF</strong> (documentos legales y comerciales):</p>
+      <div class="logo-grid">
+        <div class="logo-tile light"><img src="assets/brand/wordmark-tagline-rif-green.png"/><span class="logo-tile__lbl">Verde + tagline + RIF</span><a class="logo-tile__dl" download href="assets/brand/wordmark-tagline-rif-green.png">⬇ PNG</a></div>
+        <div class="logo-tile light"><img src="assets/brand/wordmark-tagline-rif-navy.png"/><span class="logo-tile__lbl">Navy + tagline + RIF</span><a class="logo-tile__dl" download href="assets/brand/wordmark-tagline-rif-navy.png">⬇ PNG</a></div>
+        <div class="logo-tile light"><img src="assets/brand/wordmark-tagline-rif-black.png"/><span class="logo-tile__lbl">Negro + tagline + RIF</span><a class="logo-tile__dl" download href="assets/brand/wordmark-tagline-rif-black.png">⬇ PNG</a></div>
+        <div class="logo-tile light"><img src="assets/brand/wordmark-tagline-rif-duotone.png"/><span class="logo-tile__lbl">Bicolor + tagline + RIF</span><a class="logo-tile__dl" download href="assets/brand/wordmark-tagline-rif-duotone.png">⬇ PNG</a></div>
+        <div class="logo-tile dark"><img src="assets/brand/wordmark-tagline-rif-white.png"/><span class="logo-tile__lbl">Blanco + tagline + RIF</span><a class="logo-tile__dl" download href="assets/brand/wordmark-tagline-rif-white.png">⬇ PNG</a></div>
+      </div>
+
+      <h4 style="margin:1.4rem 0 .5rem;font-family:var(--vp-font-cond);text-transform:uppercase;letter-spacing:.04em;color:var(--vp-navy);font-size:1rem">3 · Isotipo · solo la "P"</h4>
+      <p class="muted" style="margin:0 0 .6rem">Para íconos, avatares de redes, favicons, sellos, watermarks o cuando el espacio es muy pequeño y el wordmark no se lee bien.</p>
+      <div class="logo-grid">
+        <div class="logo-tile light"><img src="assets/brand/isotipo-green.png"/><span class="logo-tile__lbl">Verde</span><a class="logo-tile__dl" download href="assets/brand/isotipo-green.png">⬇ PNG</a></div>
+        <div class="logo-tile light"><img src="assets/brand/isotipo-navy.png"/><span class="logo-tile__lbl">Navy</span><a class="logo-tile__dl" download href="assets/brand/isotipo-navy.png">⬇ PNG</a></div>
+        <div class="logo-tile light"><img src="assets/brand/isotipo-black.png"/><span class="logo-tile__lbl">Negro</span><a class="logo-tile__dl" download href="assets/brand/isotipo-black.png">⬇ PNG</a></div>
+        <div class="logo-tile light"><img src="assets/brand/isotipo-gradient.png"/><span class="logo-tile__lbl">Gradiente (verde → navy)</span><a class="logo-tile__dl" download href="assets/brand/isotipo-gradient.png">⬇ PNG</a></div>
+        <div class="logo-tile dark"><img src="assets/brand/isotipo-white.png"/><span class="logo-tile__lbl">Blanco</span><a class="logo-tile__dl" download href="assets/brand/isotipo-white.png">⬇ PNG</a></div>
+      </div>
+
+      <div style="margin-top:1.2rem;background:#FFF8E5;border-left:4px solid #F0B400;border-radius:8px;padding:.7rem .9rem;font-size:.93rem;color:var(--vp-text-2)">
+        <strong>Reglas de uso (cortitas):</strong>
+        <ul style="margin:.4rem 0 0;padding-left:1.1rem">
+          <li><strong>No</strong> estires, deformes ni rotes el logo.</li>
+          <li><strong>No</strong> le cambies los colores ni le agregues efectos (sombras, brillos, contornos).</li>
+          <li><strong>Respeta el área de seguridad</strong>: deja un margen alrededor del logo igual a la altura de la "P" del isotipo.</li>
+          <li>Sobre fondos oscuros usa la versión <strong>blanca</strong>; sobre fondos claros, cualquiera de las de color.</li>
+          <li>Si la pieza es muy chica (favicon, ícono), usa el <strong>isotipo</strong>, no el wordmark.</li>
+        </ul>
       </div>
     </div>
     <div class="card">
       <h3>Tono de voz</h3>
+      <p class="muted" style="margin:.2rem 0 .8rem">El tono es <em>cómo</em> escribimos: las palabras, el ritmo y la actitud. Aplica para tu presentación, tu demo, tu correo, todo.</p>
       <ul style="margin:0;padding-left:1.1rem;color:var(--vp-text-2)">
         <li><strong>Claro y directo</strong>: nada de "potencializar sinergias". Decimos qué hace y para quién.</li>
         <li><strong>Cercano</strong>: hablamos de tú a tú con el colaborador y con el cliente.</li>
@@ -1888,10 +1953,18 @@ function removeCommitment(){
   DB.users[SESSION.email].commitmentSigned=null;saveDB();goto("carta");
 }
 
-/* ----- Carta de compromiso (HTML imprimible) ----- */
+/* ----- Carta de compromiso (PDF oficial sobre hoja membretada Vepagos) ----- */
+const COMMITMENT_LETTER_URL = "assets/Carta_Compromiso_Reto_IA_Vepagos_2026.pdf";
 function downloadCommitmentLetter(){
   const u = DB.users[SESSION.email];
   u.commitmentDownloaded = true; saveDB();
+  const a = document.createElement('a');
+  a.href = COMMITMENT_LETTER_URL;
+  a.download = "Carta_Compromiso_Reto_IA_Vepagos_2026.pdf";
+  document.body.appendChild(a); a.click(); a.remove();
+  toast("Carta descargada ✓ Imprímela, complétala con tus datos y fírmala.");
+  return;
+  /* --- Legacy HTML letter (preservada por si se necesita versión auto-personalizada) ---
   const fecha = new Date().toLocaleDateString("es-VE",{day:"2-digit",month:"long",year:"numeric"});
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Carta de Compromiso · ${escapeHTML(u.name)}</title>
   <style>
@@ -1955,6 +2028,7 @@ function downloadCommitmentLetter(){
   const blob = new Blob([html],{type:"text/html"});
   const url = URL.createObjectURL(blob);
   window.open(url,"_blank");
+  --- fin legacy --- */
 }
 
 /* ---------- Recursos (vista compartida) ---------- */
@@ -3246,5 +3320,9 @@ function toast(msg, kind){
 /* ---------- 9. INIT ---------- */
 if(!tryRestore()){/* show login */}
 </script>
+
+<!-- Wizard global · tutorial amigable -->
+<script src="assets/wizard.js" defer></script>
+
 </body>
 </html>
