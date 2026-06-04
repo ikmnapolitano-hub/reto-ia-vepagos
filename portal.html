@@ -1071,6 +1071,7 @@ function loadDB(){
         }
       });
       if(!db.campaigns) db.campaigns = []; // email marketing
+      if(!Array.isArray(db.passResetRequests)) db.passResetRequests = []; // solicitudes "olvidé mi clave"
       // Purga binarios base64 legacy (rompían la quota de localStorage)
       purgeLegacyBinaries(db);
       return db;
@@ -1108,7 +1109,7 @@ function loadDB(){
     u.assignedProblem = u.problemas[0] || "";
     u.approvedNote = "Aprobado para participar. Ver problema asignado y comenzar Semana 1.";
   });
-  return {users, criteria: JSON.parse(JSON.stringify(DEFAULT_CRITERIA)), criteriaVersion: CRITERIA_VERSION, resources: JSON.parse(JSON.stringify(DEFAULT_RESOURCES)), resourcesVersion: RESOURCES_VERSION, config: Object.assign({}, DEFAULT_CONFIG), configVersion: CONFIG_VERSION, campaigns: []};
+  return {users, criteria: JSON.parse(JSON.stringify(DEFAULT_CRITERIA)), criteriaVersion: CRITERIA_VERSION, resources: JSON.parse(JSON.stringify(DEFAULT_RESOURCES)), resourcesVersion: RESOURCES_VERSION, config: Object.assign({}, DEFAULT_CONFIG), configVersion: CONFIG_VERSION, campaigns: [], passResetRequests: []};
 }
 function saveDB(){
   try{
@@ -1181,6 +1182,7 @@ async function pullRemote(){
           DB.configVersion = CONFIG_VERSION;
         }
         if(!DB.campaigns) DB.campaigns = [];
+        if(!Array.isArray(DB.passResetRequests)) DB.passResetRequests = [];
         // Migración de recursos también al pull remoto
         if((DB.resourcesVersion||1) < RESOURCES_VERSION){
           const existingIds = new Set((DB.resources||[]).map(r=>r.id));
@@ -1304,6 +1306,24 @@ function submitForgot(){
     mensaje: note,
     fecha: new Date().toLocaleString('es-VE')
   });
+  // Persistir en el DB compartido para que aparezca en "Solicitudes de ayuda" del admin
+  if(!Array.isArray(DB.passResetRequests)) DB.passResetRequests = [];
+  // Evitar duplicar una solicitud activa del mismo correo
+  const yaActiva = DB.passResetRequests.find(r=>r.email===email && r.status==='active');
+  if(!yaActiva){
+    DB.passResetRequests.push({
+      id: 'pr'+Date.now(),
+      email: email,
+      name: u ? u.name : '(no registrado)',
+      registered: !!u,
+      note: note || '',
+      ts: Date.now(),
+      status: 'active',
+      resolvedAt: 0,
+      resolvedBy: ''
+    });
+    try{ saveDB(); }catch(e){ console.warn('saveDB tras forgot falló', e); }
+  }
   msg.innerHTML='<div class="ok">Solicitud enviada ✓ Catherine o Isabella la atenderán pronto.</div>';
   setTimeout(closeForgotModal, 2500);
 }
@@ -1452,10 +1472,12 @@ function applyRoleUI(){
       }
     }
   }catch(e){ console.warn('notif role-ui err', e); }
-  // Pill con count de ayuda en sidebar admin
+  // Pill con count de ayuda en sidebar admin (incluye solicitudes de reset de clave)
   const pill = document.getElementById("help-pill");
   if(pill){
-    const n = Object.values(DB.users).filter(hasActiveHelp).length;
+    const nHelp = Object.values(DB.users).filter(hasActiveHelp).length;
+    const nReset = (DB.passResetRequests||[]).filter(r=>r.status==='active').length;
+    const n = nHelp + nReset;
     pill.innerHTML = n>0 ? `<span class="pill-count">${n}</span>` : "";
   }
   // Pill con count de feedback no leído para participante
@@ -1517,7 +1539,9 @@ function renderBottomNav(){
       {p:"_menu",     i:"menu",  l:"Más"},
     ];
   } else if(r==="admin"){
-    const n = Object.values(DB.users).filter(hasActiveHelp).length;
+    const nHelpBot = Object.values(DB.users).filter(hasActiveHelp).length
+      + (DB.passResetRequests||[]).filter(pr=>pr.status==='active').length;
+    const n = nHelpBot;
     items = [
       {p:"a-tablero",      i:"dash",     l:"Tablero"},
       {p:"a-participantes",i:"users",    l:"Personas"},
@@ -4552,10 +4576,38 @@ function renderAdminAyuda(main){
   });
   const active = items.filter(x=>x.h.status==='active').sort((a,b)=>b.h.ts-a.h.ts);
   const resolved = items.filter(x=>x.h.status==='resolved').sort((a,b)=>(b.h.resolvedAt||0)-(a.h.resolvedAt||0));
+  // Solicitudes de reset de clave (del modal "¿Olvidaste tu contraseña?")
+  const allReset = Array.isArray(DB.passResetRequests) ? DB.passResetRequests : [];
+  const resetActive = allReset.filter(r=>r.status==='active').sort((a,b)=>b.ts-a.ts);
+  const resetResolved = allReset.filter(r=>r.status==='resolved').sort((a,b)=>(b.resolvedAt||0)-(a.resolvedAt||0));
   main.innerHTML = `
     <h1 class="page-title">Solicitudes de ayuda</h1>
-    <p class="page-sub">Quienes pulsan "Necesito ayuda" aparecen aquí. Resuelve con una nota — queda como referencia para futuros casos similares.</p>
-    <div class="card"><h3>Activas (${active.length})</h3>
+    <p class="page-sub">Quienes pulsan "Necesito ayuda" o "¿Olvidaste tu contraseña?" aparecen aquí. Resuelve con una nota o resetea la clave — queda como referencia para futuros casos similares.</p>
+
+    <div class="card"><h3>🔑 Reset de clave pendientes (${resetActive.length})</h3>
+      ${resetActive.length?resetActive.map(r=>{
+        const u = DB.users[r.email];
+        const nombreVisible = u ? u.name : (r.name || r.email);
+        const areaVisible = u ? u.area : (r.registered ? '' : 'NO registrado en el reto');
+        const gerente = u && DB.users[u.manager] ? DB.users[u.manager].name : (u?u.manager:'—');
+        return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;padding:.65rem 0;border-bottom:1px dashed var(--vp-line)">
+          <div style="min-width:0;flex:1">
+            <strong>${escapeHTML(nombreVisible)}</strong>
+            <span class="muted">· ${escapeHTML(r.email)}${areaVisible?(' · '+escapeHTML(areaVisible)):''}${u?(' · gerente: '+escapeHTML(gerente)):''}</span>
+            ${r.note?`<div style="margin-top:.2rem;color:var(--vp-text-2)">"${escapeHTML(r.note)}"</div>`:''}
+            <div class="muted" style="font-size:.75rem">Pidió reset ${fmtDate(r.ts)}</div>
+            ${!u?'<div class="muted" style="font-size:.75rem;color:var(--vp-red)">⚠ Este correo no está en la lista de participantes — verifica antes de resetear</div>':''}
+          </div>
+          <div style="display:flex;gap:.4rem;flex-shrink:0;flex-wrap:wrap">
+            ${u?`<button class="btn btn--ghost btn--sm" onclick="viewDetail('${r.email}','a-detalle')">Abrir</button>`:''}
+            ${u?`<button class="btn btn--primary btn--sm" onclick="doResetPassRequest('${r.id}')">Resetear a 123456</button>`:''}
+            <button class="btn btn--ghost btn--sm" onclick="dismissResetRequest('${r.id}')">Descartar</button>
+          </div>
+        </div>`;
+      }).join(""):'<p class="muted">No hay solicitudes de reset pendientes.</p>'}
+    </div>
+
+    <div class="card"><h3>Ayuda activa (${active.length})</h3>
       ${active.length?active.map(({u,h})=>`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;padding:.65rem 0;border-bottom:1px dashed var(--vp-line)">
         <div><strong>${escapeHTML(u.name)}</strong> <span class="muted">· ${escapeHTML(u.area)} · gerente: ${escapeHTML((DB.users[u.manager]||{}).name||u.manager)}</span>
         <div style="margin-top:.2rem;color:var(--vp-text-2)">"${escapeHTML(h.text)}"</div>
@@ -4563,14 +4615,49 @@ function renderAdminAyuda(main){
         <div style="display:flex;gap:.4rem;flex-shrink:0"><button class="btn btn--ghost btn--sm" onclick="viewDetail('${u.email}','a-detalle')">Abrir</button><button class="btn btn--primary btn--sm" onclick="openResolveHelpModal('${u.email}','${h.id}')">Resolver</button></div>
       </div>`).join(""):'<p class="muted">No hay solicitudes activas ahora mismo.</p>'}
     </div>
-    <div class="card"><h3>Histórico resueltas (${resolved.length}) — referencia</h3>
+    <div class="card"><h3>Histórico resueltas (${resolved.length + resetResolved.length}) — referencia</h3>
       ${resolved.length?resolved.map(({u,h})=>`<details style="border-bottom:1px dashed var(--vp-line);padding:.4rem 0"><summary><strong>${escapeHTML(u.name)}</strong> · ${escapeHTML(u.area)} · ${fmtDate(h.resolvedAt)}</summary>
         <p style="margin:.4rem 0;color:var(--vp-text-2)"><strong>Bloqueo:</strong> "${escapeHTML(h.text)}"</p>
         <p style="margin:.2rem 0;color:var(--vp-text-2)"><strong>Resolución:</strong> ${escapeHTML(h.resolution||'(sin nota)')}</p>
         <p class="muted" style="font-size:.75rem">Resuelta por ${escapeHTML(h.resolvedBy||'—')} el ${fmtDate(h.resolvedAt)}. Pedida originalmente ${fmtDate(h.ts)}.</p>
-      </details>`).join(""):'<p class="muted">— sin historial —</p>'}
+      </details>`).join(""):''}
+      ${resetResolved.length?resetResolved.map(r=>`<details style="border-bottom:1px dashed var(--vp-line);padding:.4rem 0"><summary>🔑 <strong>${escapeHTML(r.name||r.email)}</strong> · reset de clave · ${fmtDate(r.resolvedAt)}</summary>
+        <p style="margin:.4rem 0;color:var(--vp-text-2)"><strong>Correo:</strong> ${escapeHTML(r.email)}</p>
+        ${r.note?`<p style="margin:.2rem 0;color:var(--vp-text-2)"><strong>Nota:</strong> "${escapeHTML(r.note)}"</p>`:''}
+        <p class="muted" style="font-size:.75rem">Resuelta por ${escapeHTML(r.resolvedBy||'—')} el ${fmtDate(r.resolvedAt)}. Pedida originalmente ${fmtDate(r.ts)}.</p>
+      </details>`).join(""):''}
+      ${(!resolved.length && !resetResolved.length)?'<p class="muted">— sin historial —</p>':''}
     </div>
   `;
+}
+
+/* Resetear clave desde la solicitud — el admin pulsa el botón en "Solicitudes de ayuda" */
+function doResetPassRequest(reqId){
+  const r = (DB.passResetRequests||[]).find(x=>x.id===reqId);
+  if(!r){toast('Solicitud no encontrada');return;}
+  const u = DB.users[r.email];
+  if(!u){toast('Correo no está entre los participantes');return;}
+  if(!confirm(`¿Resetear la clave de ${u.name} (${u.email}) a 123456?`)) return;
+  u.pass = "123456";
+  u.passChanged = false;
+  r.status = 'resolved';
+  r.resolvedAt = Date.now();
+  r.resolvedBy = (DB.users[SESSION.email]||{}).name || SESSION.email;
+  saveDB();
+  toast('✓ Clave reseteada a 123456 — avísale por WhatsApp/email');
+  goto(CURRENT_PAGE);
+}
+
+/* Descartar una solicitud sin resetear (ej. era un correo inválido o duplicado) */
+function dismissResetRequest(reqId){
+  const r = (DB.passResetRequests||[]).find(x=>x.id===reqId);
+  if(!r) return;
+  if(!confirm('¿Descartar esta solicitud? Quedará en el histórico como resuelta sin reset.')) return;
+  r.status = 'resolved';
+  r.resolvedAt = Date.now();
+  r.resolvedBy = ((DB.users[SESSION.email]||{}).name || SESSION.email) + ' (descartada)';
+  saveDB();
+  goto(CURRENT_PAGE);
 }
 
 /* Modal para resolver con nota — admin/manager */
