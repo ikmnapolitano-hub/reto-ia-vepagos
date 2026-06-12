@@ -718,6 +718,7 @@ tr.help-active td:first-child{border-left:4px solid var(--vp-red)}
         <div class="navsection">Administración</div>
         <button class="navitem active" data-page="a-tablero" onclick="goto('a-tablero')"><span class="ico">▸</span>Tablero</button>
         <button class="navitem" data-page="a-participantes" onclick="goto('a-participantes')"><span class="ico">▸</span>Participantes</button>
+        <button class="navitem" data-page="a-evaluacion" onclick="goto('a-evaluacion')"><span class="ico">▸</span>Evaluación por semana</button>
         <button class="navitem" data-page="a-ayuda" onclick="goto('a-ayuda')"><span class="ico">▸</span>Solicitudes de ayuda <span id="help-pill"></span></button>
         <button class="navitem" data-page="a-detalle" onclick="goto('a-detalle')"><span class="ico">▸</span>Ficha participante</button>
         <button class="navitem" data-page="a-resumen" onclick="goto('a-resumen')"><span class="ico">▸</span>Resumen diario</button>
@@ -887,7 +888,10 @@ const DEFAULT_CONFIG = {
   startISO: "2026-06-05",    // 5 jun 2026, viernes
   weeks: 5,
   platziMonthlyUSD: 29,
-  platziYearlyUSD: 250
+  platziYearlyUSD: 250,
+  // Pesos del "Índice del Reto" que ordena el ranking público.
+  // Editables por el admin. Suman 100 idealmente; si no, se normaliza solo.
+  rankWeights: { project: 50, completion: 30, final: 20 }
 };
 
 /* Recursos por defecto (editable por admin)
@@ -1023,6 +1027,8 @@ function loadDB(){
       // migración suave: asegurar campos nuevos
       if(!db.resources) db.resources = JSON.parse(JSON.stringify(DEFAULT_RESOURCES));
       if(!db.config) db.config = Object.assign({}, DEFAULT_CONFIG);
+      // Migración no destructiva: pesos del Índice del Reto (ranking)
+      if(!db.config.rankWeights) db.config.rankWeights = Object.assign({}, DEFAULT_CONFIG.rankWeights);
       // Migración de config: forzar el nuevo número de semanas si el DB es viejo
       if((db.configVersion||1) < CONFIG_VERSION){
         db.config.weeks = DEFAULT_CONFIG.weeks;
@@ -1175,6 +1181,8 @@ async function pullRemote(){
         DB = j.db;
         if(!DB.resources) DB.resources = JSON.parse(JSON.stringify(DEFAULT_RESOURCES));
         if(!DB.config) DB.config = Object.assign({}, DEFAULT_CONFIG);
+        // Migración no destructiva: pesos del Índice del Reto (ranking)
+        if(!DB.config.rankWeights) DB.config.rankWeights = Object.assign({}, DEFAULT_CONFIG.rankWeights);
         if((DB.configVersion||1) < CONFIG_VERSION){
           // sobreescribir campos estructurales (semanas), preservar precios si el admin los tocó
           DB.config.weeks = DEFAULT_CONFIG.weeks;
@@ -1586,6 +1594,7 @@ function goto(page){
     case "a-tablero": renderAdminTablero(main); break;
     case "a-lista": renderKpiList(main); break;
     case "a-participantes": renderAdminParticipantes(main); break;
+    case "a-evaluacion": renderAdminEvaluacion(main); break;
     case "a-ayuda": renderAdminAyuda(main); break;
     case "a-detalle": renderAdminDetalle(main); break;
     case "a-resumen": renderAdminResumen(main); break;
@@ -1687,15 +1696,62 @@ function progressFor(u){
   if(!hasActiveHelp(u)) pts += 8;
   return Math.min(100, pts);
 }
+/* ---------- PUNTUACIÓN POR PROYECTO (semanal) ----------
+   El comité asigna una nota 0–100 a cada semana en u.progress[n].score.
+   Es independiente de la evaluación final (rúbrica) y de la completitud.
+   Solo se promedian las semanas YA calificadas: las pendientes NO penalizan. */
+function clampScore(v){ v = Number(v); if(isNaN(v)) return null; return Math.max(0, Math.min(100, v)); }
+function projectScoreInfo(u){
+  let sum = 0, graded = 0;
+  const prog = (u && u.progress) || {};
+  for(let n=1;n<=5;n++){
+    const p = prog[n];
+    if(p && typeof p.score === 'number' && !isNaN(p.score)){
+      sum += Math.max(0, Math.min(100, p.score));
+      graded++;
+    }
+  }
+  return { avg: graded ? sum/graded : 0, graded };
+}
+function projectAvg(u){ return projectScoreInfo(u).avg; }
+
+/* Pesos del Índice del Reto (editables por admin, con defaults seguros). */
+function rankWeights(){
+  const w = (DB.config && DB.config.rankWeights) || {};
+  const num = (x, d) => (typeof x === 'number' && isFinite(x) && x >= 0) ? x : d;
+  return { project: num(w.project, 50), completion: num(w.completion, 30), final: num(w.final, 20) };
+}
+
+/* Índice del Reto (0–100): mezcla ponderada de
+   - promedio de proyectos calificados (calidad por entrega)
+   - completitud objetiva (progressFor)
+   - evaluación final (rúbrica, sumScore)
+   El peso de "proyectos" solo entra cuando ya hay al menos 1 semana calificada,
+   y los pesos restantes se normalizan: así el índice es 0–100 real desde el día 1. */
+function retoIndex(u){
+  const w = rankWeights();
+  const pj = projectScoreInfo(u);
+  const comp = progressFor(u);
+  const fin = sumScore(u).total;
+  let num = 0, den = 0;
+  if(pj.graded > 0){ num += pj.avg * w.project; den += w.project; }
+  num += comp * w.completion; den += w.completion;
+  num += fin  * w.final;      den += w.final;
+  return den ? num/den : 0;
+}
+
 function progressRanked(){
   const all = Object.values(DB.users).filter(isRealParticipant);
-  return all.map(u=>({u, prog: progressFor(u), sc: sumScore(u).total, ts: u.created||0, leader: isLeader(u)?1:0}))
-    .sort((a,b)=> a.leader-b.leader || b.prog-a.prog || b.sc-a.sc || a.ts-b.ts);
+  return all.map(u=>{
+    const pj = projectScoreInfo(u);
+    return {u, prog: progressFor(u), sc: sumScore(u).total, pj: pj.avg, graded: pj.graded, idx: retoIndex(u), ts: u.created||0, leader: isLeader(u)?1:0};
+  }).sort((a,b)=> a.leader-b.leader || b.idx-a.idx || b.prog-a.prog || b.sc-a.sc || a.ts-b.ts);
 }
 function myProgressRank(email){
   const r = progressRanked();
   const idx = r.findIndex(x=>x.u.email===email);
-  return {idx, position: idx+1, total: r.length, ranking: r, prog: r[idx]?.prog||0};
+  const row = r[idx] || null;
+  return {idx, position: idx+1, total: r.length, ranking: r, prog: row?row.prog:0, indexVal: row?row.idx:0, projAvg: row?row.pj:0, graded: row?row.graded:0, row};
 }
 
 /* Badges (calculadas) */
@@ -1705,7 +1761,8 @@ function badgesFor(u){
   const helps = (u.helpHistory||[]).length;
   const helpsResolved = (u.helpHistory||[]).filter(h=>h.status==='resolved').length;
   const sc = sumScore(u).total;
-  const r = myRank(u.email);
+  // Top 10 / Podio se calculan sobre el MISMO ranking que todos ven (Índice del Reto)
+  const r = myProgressRank(u.email);
   const inTop10 = r.position>0 && r.position<=10;
   const inTop3 = r.position>0 && r.position<=3;
   const feedbackCount = (u.feedback||[]).length;
@@ -2252,7 +2309,8 @@ function renderComunidad(main){
         <div>
           <div style="font-family:var(--fd);font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:#00CE7C">👥 Comunidad del reto</div>
           <h2 style="margin:.2rem 0 0;color:#fff">Vas en la posición ${myPos} de ${total}</h2>
-          <p style="margin:.3rem 0 0;color:rgba(255,255,255,.8);font-size:.92rem">Progreso ${Math.round(myProgress)}% · Puntaje ${myScore.toFixed(1)}/100</p>
+          <p style="margin:.3rem 0 0;color:rgba(255,255,255,.85);font-size:.92rem"><strong style="color:#00CE7C">Índice del Reto ${pr.indexVal.toFixed(1)}/100</strong></p>
+          <p style="margin:.15rem 0 0;color:rgba(255,255,255,.7);font-size:.8rem">Proyectos ${pr.projAvg.toFixed(1)}/100 (${pr.graded}/5) · Progreso ${Math.round(myProgress)}% · Final ${myScore.toFixed(1)}/100</p>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.3rem">
           <span class="badge badge--green">${myProgress>=80?'Vas adelante':myProgress>=40?'En carrera':'Empezando'}</span>
@@ -2293,8 +2351,8 @@ function commRenderRanking(me, pr){
   const rows = pr.ranking;
   return `
     <div class="card">
-      <h3 style="margin:0 0 .25rem">Ranking de progreso</h3>
-      <p class="muted" style="margin:0 0 .75rem">Quiénes van delante, dónde vas tú y quiénes detrás. Toca cualquier nombre para ver su proyecto o escribirle.</p>
+      <h3 style="margin:0 0 .25rem">Ranking del reto</h3>
+      <p class="muted" style="margin:0 0 .75rem">Orden por <strong>Índice del Reto</strong> (proyectos + completitud + evaluación final). Toca cualquier nombre para ver su proyecto o escribirle.</p>
       <div style="display:flex;flex-direction:column;gap:.4rem">
         ${rows.map((r,i)=>{
           const isMe = r.u.email===me;
@@ -2307,9 +2365,9 @@ function commRenderRanking(me, pr){
               <div class="muted" style="font-size:.78rem">${escapeHTML(r.u.cargo||'')} · ${escapeHTML(r.u.area||'')}</div>
               ${proj?`<div class="muted" style="font-size:.78rem;margin-top:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📌 ${escapeHTML(proj)}</div>`:''}
             </div>
-            <div style="text-align:right;flex-shrink:0">
-              <div style="font-family:var(--fd);font-weight:800;color:var(--vp-green-deep)">${Math.round(r.prog)}%</div>
-              <div class="muted" style="font-size:.7rem">${r.sc.toFixed(1)}/100</div>
+            <div style="text-align:right;flex-shrink:0;min-width:78px">
+              <div style="font-family:var(--fd);font-weight:800;font-size:1.05rem;color:var(--vp-green-deep)" title="Índice del Reto">${r.idx.toFixed(1)}</div>
+              <div class="muted" style="font-size:.66rem;line-height:1.35">★ ${r.graded?r.pj.toFixed(0):'—'}/100 proy.<br>${Math.round(r.prog)}% compl.</div>
             </div>
             <div style="display:flex;flex-direction:column;gap:.3rem;flex-shrink:0">
               <button class="btn btn--ghost btn--sm" onclick="commShowProfile('${escapeAttr(r.u.email)}')">Ver</button>
@@ -2326,6 +2384,8 @@ function commShowProfile(email){
   const u = DB.users[email]; if(!u) return;
   const sc = sumScore(u).total;
   const prog = progressFor(u);
+  const pjInfo = projectScoreInfo(u);
+  const idx = retoIndex(u);
   const weeksDone = Object.values(u.progress||{}).filter(p=>p.text||(p.files||[]).length).length;
   // Mostramos el problema APROBADO/asignado por el comité. Si todavía no se ha
   // asignado, mostramos los declarados (no aprobados) como referencia.
@@ -2343,10 +2403,18 @@ function commShowProfile(email){
         <div class="muted" style="font-size:.85rem">${escapeHTML(u.cargo||'')} · ${escapeHTML(u.area||'')}</div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.5rem;margin-bottom:.85rem">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:.5rem;margin-bottom:.7rem">
+      <div style="text-align:center;padding:.5rem;background:var(--vp-bg-soft);border-radius:8px"><div style="font-family:var(--fd);font-size:1.2rem;font-weight:800;color:var(--vp-green-deep)">${idx.toFixed(1)}</div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Índice</div></div>
+      <div style="text-align:center;padding:.5rem;background:var(--vp-bg-soft);border-radius:8px"><div style="font-family:var(--fd);font-size:1.2rem;font-weight:800;color:var(--vp-navy)">${pjInfo.avg.toFixed(1)}</div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Proyectos</div></div>
       <div style="text-align:center;padding:.5rem;background:var(--vp-bg-soft);border-radius:8px"><div style="font-family:var(--fd);font-size:1.2rem;font-weight:800;color:var(--vp-green-deep)">${Math.round(prog)}%</div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Progreso</div></div>
-      <div style="text-align:center;padding:.5rem;background:var(--vp-bg-soft);border-radius:8px"><div style="font-family:var(--fd);font-size:1.2rem;font-weight:800;color:var(--vp-navy)">${sc.toFixed(1)}</div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Puntaje</div></div>
+      <div style="text-align:center;padding:.5rem;background:var(--vp-bg-soft);border-radius:8px"><div style="font-family:var(--fd);font-size:1.2rem;font-weight:800;color:var(--vp-navy)">${sc.toFixed(1)}</div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Final</div></div>
       <div style="text-align:center;padding:.5rem;background:var(--vp-bg-soft);border-radius:8px"><div style="font-family:var(--fd);font-size:1.2rem;font-weight:800;color:var(--vp-navy)">${weeksDone}/5</div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Semanas</div></div>
+    </div>
+    <div style="margin-bottom:.85rem">
+      <strong style="font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--vp-navy)">Notas por proyecto (comité)</strong>
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem">
+        ${[1,2,3,4,5].map(n=>{const p=(u.progress||{})[n]||{};const has=typeof p.score==='number'&&!isNaN(p.score);return `<div style="flex:1;min-width:54px;text-align:center;padding:.4rem .3rem;border-radius:8px;border:1px solid var(--vp-line);background:${has?'rgba(0,206,124,.08)':'var(--vp-bg)'}"><div class="muted" style="font-size:.62rem;text-transform:uppercase">Sem ${n}</div><div style="font-family:var(--fd);font-weight:800;font-size:.95rem;color:${has?'var(--vp-green-deep)':'var(--vp-text-soft)'}">${has?p.score:'—'}</div></div>`;}).join('')}
+      </div>
     </div>
     ${projects.length?`<div style="margin-bottom:.85rem"><strong>${escapeHTML(projectsLabel)}</strong><ul style="margin:.3rem 0 0;padding-left:1.2rem">${projects.map(p=>`<li>${escapeHTML(p)}</li>`).join('')}</ul></div>`:''}
     ${sol?`<div style="margin-bottom:.85rem;padding:.6rem;background:var(--vp-bg-soft);border-radius:8px"><strong>Solución que está construyendo:</strong><div style="margin-top:.3rem;white-space:pre-wrap">${escapeHTML(sol)}</div></div>`:''}
@@ -3085,9 +3153,24 @@ function removeSolutionFile(i){
 
 function renderAvances(main){
   const u = DB.users[SESSION.email];
+  const pjInfo = projectScoreInfo(u);
+  const pr = myProgressRank(SESSION.email);
   main.innerHTML = `
     <h1 class="page-title">Avances semanales</h1>
     <p class="page-sub">Sube cada semana lo que vayas haciendo: documentos, capturas, prototipos, videos. Tu gerente y los admins lo verán en línea.</p>
+    <div class="card" style="background:linear-gradient(135deg,#001F60,#003396);color:#fff;border:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+        <div>
+          <div style="font-family:var(--fd);font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:#00CE7C">★ Tus notas por proyecto</div>
+          <h2 style="margin:.2rem 0 0;color:#fff">Promedio ${pjInfo.avg.toFixed(1)}/100</h2>
+          <p style="margin:.3rem 0 0;color:rgba(255,255,255,.8);font-size:.92rem">${pjInfo.graded} de 5 semanas calificadas · Índice del Reto ${pr.indexVal.toFixed(1)}/100 · Posición ${pr.position} de ${pr.total}</p>
+        </div>
+        <div style="text-align:right">
+          <button class="btn btn--ghost btn--sm" style="border-color:rgba(255,255,255,.4);color:#fff" onclick="goto('comunidad')">Ver ranking</button>
+        </div>
+      </div>
+      <p style="margin:.6rem 0 0;color:rgba(255,255,255,.65);font-size:.78rem">El comité califica cada entrega de 0 a 100. Esta nota cuenta en el ranking que todos ven. Lo que aún no se evalúa no te resta.</p>
+    </div>
     ${SEMANAS.map(s=>{
       const p = u.progress[s.n] || {text:"",files:[]};
       return `<div class="card">
@@ -3096,7 +3179,12 @@ function renderAvances(main){
             <h3 style="margin-bottom:.1rem">${s.titulo}</h3>
             <p class="muted">${s.descripcion}</p>
           </div>
-          ${p.text||p.files.length?'<span class="badge badge--green">Con avance</span>':'<span class="badge badge--gray">Pendiente</span>'}
+          <div style="display:flex;flex-direction:column;gap:.35rem;align-items:flex-end">
+            ${p.text||p.files.length?'<span class="badge badge--green">Con avance</span>':'<span class="badge badge--gray">Pendiente</span>'}
+            ${typeof p.score==='number' && !isNaN(p.score)
+              ? `<span class="badge badge--navy" title="Nota del comité para esta semana">★ ${p.score}/100</span>`
+              : '<span class="badge badge--gray" style="opacity:.7" title="El comité aún no califica esta semana">Sin evaluar</span>'}
+          </div>
         </div>
         <div class="field" style="margin-top:.85rem">
           <label>Resumen de avance</label>
@@ -3999,11 +4087,11 @@ function renderAdminCharts(all){
     options:{plugins:{legend:{position:'right',labels:{font:{size:11,family:'Barlow'}}}},cutout:'55%'}
   });
 
-  // 3) Top 10
-  const top = rankedParticipants().slice(0,10);
+  // 3) Top 10 — por Índice del Reto (el mismo ranking que ven los participantes)
+  const top = progressRanked().slice(0,10);
   drawChart('ch-top',{
     type:'bar',
-    data:{labels:top.map(x=>x.u.name.split(' ').slice(0,2).join(' ')),datasets:[{label:'Puntaje',data:top.map(x=>x.sc),backgroundColor:top.map((_,i)=>i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'#00CE7C'),borderRadius:6}]},
+    data:{labels:top.map(x=>x.u.name.split(' ').slice(0,2).join(' ')),datasets:[{label:'Índice del Reto',data:top.map(x=>x.idx),backgroundColor:top.map((_,i)=>i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'#00CE7C'),borderRadius:6}]},
     options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,max:100,grid:{color:'#E1E5EE'}},y:{grid:{display:false}}}}
   });
 
@@ -4156,6 +4244,117 @@ function renderAdminTabla(){
   document.getElementById("adm-tabla").innerHTML = html || '<p class="muted">Sin resultados.</p>';
 }
 
+/* ---------- 7.a · ADMIN: avance de evaluación POR SEMANA ----------
+   Resuelve "¿a quién ya califiqué esta semana y a quién me falta?".
+   Filtros: pendientes / evaluados / entregaron-sin-evaluar / todos.
+   Permite poner la nota 0–100 ahí mismo (no destructivo) o abrir la ficha. */
+function renderAdminEvaluacion(main){
+  const weekOpts = SEMANAS.map(s=>`<option value="${s.n}">Semana ${s.n} · ${escapeHTML((s.titulo||'').replace(/^Semana \d+ · /,''))}</option>`).join("");
+  main.innerHTML = `
+    <h1 class="page-title">Evaluación por semana</h1>
+    <p class="page-sub">Elige una semana y mira de un vistazo a quién ya calificaste y a quién te falta. Puedes poner la nota (0–100) aquí mismo o abrir la ficha para revisar el avance.</p>
+    <div class="toolbar">
+      <select class="role-pick" id="evf-week" onchange="renderAdminEvalTabla()">${weekOpts}</select>
+      <select class="role-pick" id="evf-filter" onchange="renderAdminEvalTabla()">
+        <option value="pendientes">⏳ Pendientes por evaluar</option>
+        <option value="entregaron-pend">📥 Entregaron y faltan por evaluar</option>
+        <option value="evaluados">✓ Ya evaluados</option>
+        <option value="todos">Todos</option>
+      </select>
+      <input class="search" id="evf-q" placeholder="Buscar por nombre, correo o área…" oninput="renderAdminEvalTabla()"/>
+      <select class="role-pick" id="evf-area" onchange="renderAdminEvalTabla()">
+        <option value="">Todas las áreas</option>
+        ${[...new Set(Object.values(DB.users).filter(isRealParticipant).map(u=>u.area))].sort().map(a=>`<option value="${escapeAttr(a)}">${escapeHTML(a)}</option>`).join("")}
+      </select>
+    </div>
+    <div id="ev-summary"></div>
+    <div class="card" id="ev-tabla"></div>
+  `;
+  renderAdminEvalTabla();
+}
+function renderAdminEvalTabla(){
+  const n = parseInt(document.getElementById("evf-week")?.value||"1",10);
+  const filter = document.getElementById("evf-filter")?.value||"pendientes";
+  const q = (document.getElementById("evf-q")?.value||"").toLowerCase();
+  const fa = document.getElementById("evf-area")?.value||"";
+  const hasScore  = u => { const p=(u.progress||{})[n]; return !!(p && typeof p.score==='number' && !isNaN(p.score)); };
+  const delivered = u => { const p=(u.progress||{})[n]; return !!(p && (p.text || (p.files||[]).length)); };
+  // Universo: participantes reales que NO son líderes (los líderes no compiten ni se califican)
+  const all = Object.values(DB.users).filter(isRealParticipant).filter(u=>!isLeader(u));
+  // Métricas globales de la semana (sobre todo el universo, sin búsqueda)
+  const evaluated = all.filter(hasScore).length;
+  const pending = all.length - evaluated;
+  const deliveredCount = all.filter(delivered).length;
+  const deliveredPending = all.filter(u=>delivered(u) && !hasScore(u)).length;
+  const scoreVals = all.filter(hasScore).map(u=>u.progress[n].score);
+  const avg = scoreVals.length ? scoreVals.reduce((a,b)=>a+b,0)/scoreVals.length : 0;
+  const pct = all.length ? Math.round(evaluated/all.length*100) : 0;
+  // Filtros de vista
+  let rows = all
+    .filter(u=>!q || (u.name+" "+u.email+" "+(u.area||'')+" "+(u.cargo||'')).toLowerCase().includes(q))
+    .filter(u=>!fa || u.area===fa);
+  if(filter==='pendientes')           rows = rows.filter(u=>!hasScore(u));
+  else if(filter==='evaluados')       rows = rows.filter(hasScore);
+  else if(filter==='entregaron-pend') rows = rows.filter(u=>delivered(u) && !hasScore(u));
+  rows.sort((a,b)=>a.name.localeCompare(b.name));
+
+  const sum = document.getElementById("ev-summary");
+  if(sum) sum.innerHTML = `
+    <div class="card" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;justify-content:space-between">
+      <div style="display:flex;gap:1.4rem;flex-wrap:wrap">
+        <div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Evaluados</div><div style="font-family:var(--fd);font-size:1.4rem;font-weight:800;color:var(--vp-green-deep)">${evaluated}<span style="font-size:.9rem;color:var(--vp-text-soft)">/${all.length}</span></div></div>
+        <div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Pendientes</div><div style="font-family:var(--fd);font-size:1.4rem;font-weight:800;color:${pending?'var(--vp-red)':'var(--vp-green-deep)'}">${pending}</div></div>
+        <div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Entregaron</div><div style="font-family:var(--fd);font-size:1.4rem;font-weight:800;color:var(--vp-navy)">${deliveredCount}</div></div>
+        <div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Entregaron sin nota</div><div style="font-family:var(--fd);font-size:1.4rem;font-weight:800;color:${deliveredPending?'var(--vp-amber,#B45309)':'var(--vp-green-deep)'}">${deliveredPending}</div></div>
+        <div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Promedio nota</div><div style="font-family:var(--fd);font-size:1.4rem;font-weight:800;color:var(--vp-navy)">${avg.toFixed(1)}</div></div>
+      </div>
+      <div style="flex:1;min-width:180px;max-width:360px">
+        <div class="muted" style="font-size:.72rem;margin-bottom:.25rem">Progreso de evaluación · Semana ${n}: <strong>${pct}%</strong></div>
+        <div style="height:10px;background:var(--vp-line);border-radius:999px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--vp-green);transition:width .3s"></div></div>
+      </div>
+    </div>`;
+
+  const body = rows.map(u=>{
+    const p = (u.progress||{})[n]||{};
+    const has = hasScore(u);
+    const del = delivered(u);
+    return `<tr>
+      <td><strong>${escapeHTML(u.name)}</strong><div class="muted">${escapeHTML(u.email)}</div></td>
+      <td>${escapeHTML(u.area||'')}</td>
+      <td>${del?'<span class="badge badge--green">Entregó</span>':'<span class="badge badge--gray">Sin entrega</span>'}</td>
+      <td>${has?'<span class="badge badge--green">Evaluado</span>':'<span class="badge badge--amber">Pendiente</span>'}</td>
+      <td><div class="score-input"><input type="number" min="0" max="100" step="1" value="${has?p.score:''}" placeholder="—" style="width:74px" onchange="setWeekScoreInline('${escapeAttr(u.email)}',${n},this.value)"/><span class="muted">/100</span></div></td>
+      <td><button class="btn btn--ghost btn--sm" onclick="window.__detailInitialTab='avances';viewDetail('${escapeAttr(u.email)}','a-detalle')">Ver avance</button></td>
+    </tr>`;
+  }).join("");
+  const box = document.getElementById("ev-tabla");
+  if(box) box.innerHTML = rows.length
+    ? `<table><thead><tr><th>Participante</th><th>Área</th><th>Entrega</th><th>Evaluación</th><th>Nota (0–100)</th><th></th></tr></thead><tbody>${body}</tbody></table>`
+    : (filter==='pendientes'||filter==='entregaron-pend'
+        ? '<p class="muted">🎉 No queda nadie por evaluar en este filtro para la Semana '+n+'.</p>'
+        : '<p class="muted">Sin resultados con estos filtros.</p>');
+}
+/* Guarda la nota de UNA semana desde la vista de evaluación. No destructivo:
+   vacío = vuelve a "pendiente" (solo borra la nota, conserva texto y archivos). */
+function setWeekScoreInline(email, n, val){
+  const u = DB.users[email]; if(!u) return;
+  if(!u.progress) u.progress = {};
+  if(!u.progress[n]) u.progress[n] = {text:"",files:[]};
+  const me = (SESSION && DB.users[SESSION.email]) || null;
+  const grader = me ? (me.name || me.email) : 'Comité';
+  const raw = (val==null ? '' : String(val)).trim();
+  if(raw === ""){
+    if(typeof u.progress[n].score === 'number'){ delete u.progress[n].score; delete u.progress[n].scoredBy; delete u.progress[n].scoredAt; }
+    saveDB(); toast("Semana "+n+" marcada como pendiente"); renderAdminEvalTabla(); return;
+  }
+  const v = clampScore(raw);
+  if(v === null){ toast("Pon un número entre 0 y 100"); return; }
+  u.progress[n].score = v;
+  u.progress[n].scoredBy = grader;
+  u.progress[n].scoredAt = Date.now();
+  saveDB(); toast("Nota guardada · Semana "+n+" = "+v); renderAdminEvalTabla();
+}
+
 function renderAdminDetalle(main){
   if(!CURRENT_DETAIL_EMAIL){main.innerHTML='<p class="muted">Selecciona un participante en la pestaña Participantes.</p>';return;}
   renderDetalle(main, CURRENT_DETAIL_EMAIL, "admin");
@@ -4244,7 +4443,11 @@ function renderDetalle(main, email, viewerRole){
     t.classList.add("active");
     renderDetalleTab(t.dataset.t, u, viewerRole);
   }));
-  renderDetalleTab("problema", u, viewerRole);
+  // Permite abrir el detalle directo en una pestaña (ej. "avances" desde Evaluación por semana)
+  const _initTab = (window.__detailInitialTab && document.querySelector('#d-tabs .tab[data-t="'+window.__detailInitialTab+'"]')) ? window.__detailInitialTab : 'problema';
+  window.__detailInitialTab = null;
+  document.querySelectorAll("#d-tabs .tab").forEach(x=>x.classList.toggle('active', x.dataset.t===_initTab));
+  renderDetalleTab(_initTab, u, viewerRole);
 }
 function renderDetalleTab(tab, u, viewerRole){
   const box = document.getElementById("d-content");
@@ -4320,15 +4523,42 @@ function renderDetalleTab(tab, u, viewerRole){
       </div>`;
   }
   if(tab==="avances"){
-    box.innerHTML = SEMANAS.map(s=>{
-      const p = u.progress[s.n]||{text:"",files:[]};
-      return `<div class="card"><h3>${s.titulo}</h3><p class="muted">${s.descripcion}</p>
-        <h4>Resumen</h4>
-        <p style="white-space:pre-wrap">${p.text?escapeHTML(p.text):'<span class="muted">— sin texto —</span>'}</p>
-        <h4>Archivos</h4>
-        ${p.files.length?p.files.map(f=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · ${fmtDate(f.ts)}</div></div><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${fileHref(f)}" target="_blank" rel="noopener">Descargar</a></div>`).join(""):'<p class="muted">— sin archivos —</p>'}
+    const pjInfo = projectScoreInfo(u);
+    box.innerHTML = `
+      <div class="card" style="background:linear-gradient(135deg,#E5E9F2 0%,#F6F8FB 100%);border-left:4px solid var(--vp-green)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+          <div style="flex:1;min-width:240px">
+            <h3 style="margin:0">Puntuación por proyecto (0–100)</h3>
+            <p class="muted" style="margin:.3rem 0 0">Califica cada entrega semanal. Las semanas sin nota quedan "pendiente de evaluación" y <strong>no penalizan</strong> el promedio. El participante y toda la comunidad ven estas notas.</p>
+          </div>
+          <div style="text-align:right;min-width:150px">
+            <div style="font-family:var(--fd);font-size:1.6rem;color:var(--vp-green-deep);line-height:1">${pjInfo.avg.toFixed(1)}<span style="font-size:1rem;color:var(--vp-text-soft)"> / 100</span></div>
+            <div class="muted" style="font-size:.8rem">promedio (${pjInfo.graded}/5 calificadas)</div>
+            <div class="muted" style="font-size:.78rem;margin-top:.25rem">Índice del Reto: <strong>${retoIndex(u).toFixed(1)}</strong>/100</div>
+          </div>
+        </div>
+      </div>
+      ${SEMANAS.map(s=>{
+        const p = u.progress[s.n]||{text:"",files:[]};
+        const hasScore = typeof p.score === 'number' && !isNaN(p.score);
+        return `<div class="card"><h3>${s.titulo}</h3><p class="muted">${s.descripcion}</p>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;background:var(--vp-bg-soft);border-radius:10px;padding:.6rem .8rem;margin:.2rem 0 .6rem">
+            <div>
+              <strong style="font-size:.9rem">Nota del comité</strong>
+              <div class="muted" style="font-size:.76rem">${hasScore && p.scoredBy ? 'Por '+escapeHTML(p.scoredBy)+(p.scoredAt?' · '+fmtDate(p.scoredAt):'') : 'Sin calificar todavía'}</div>
+            </div>
+            <div class="score-input" style="min-width:120px"><input type="number" min="0" max="100" step="1" id="pj-${s.n}" value="${hasScore?p.score:''}" placeholder="—"/><span class="muted">/ 100</span></div>
+          </div>
+          <h4>Resumen</h4>
+          <p style="white-space:pre-wrap">${p.text?escapeHTML(p.text):'<span class="muted">— sin texto —</span>'}</p>
+          <h4>Archivos</h4>
+          ${p.files.length?p.files.map(f=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · ${fmtDate(f.ts)}</div></div><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${fileHref(f)}" target="_blank" rel="noopener">Descargar</a></div>`).join(""):'<p class="muted">— sin archivos —</p>'}
+        </div>`;
+      }).join("")}
+      <div class="card" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+        <button class="btn btn--primary btn--sm" onclick="saveProjectScores('${escapeAttr(u.email)}','${viewerRole}')">Guardar notas de proyectos</button>
+        <span class="muted" style="font-size:.85rem">Deja una casilla vacía para dejarla en "pendiente de evaluación".</span>
       </div>`;
-    }).join("");
   }
   if(tab==="evaluacion"){
     box.innerHTML = `<div class="card"><h3>Asignar puntaje (sobre 10 por criterio)</h3>
@@ -4393,6 +4623,40 @@ function saveScores(email){
   });
   saveDB();toast("Puntaje guardado");
   // Refrescar pestaña
+  const active = document.querySelector("#d-tabs .tab.active");
+  if(active) active.click();
+}
+/* Guarda la nota 0–100 de cada proyecto/semana. NO destructivo:
+   - casilla vacía  -> deja la semana "pendiente" (borra solo esa nota, conserva texto y archivos)
+   - número válido  -> guarda nota + auditoría (quién y cuándo) */
+function saveProjectScores(email, viewerRole){
+  const u = DB.users[email];
+  if(!u) return;
+  const me = (SESSION && DB.users[SESSION.email]) || null;
+  const grader = me ? (me.name || me.email) : (viewerRole==='admin'?'Admin':'Comité');
+  let changed = 0;
+  for(let n=1;n<=5;n++){
+    const el = document.getElementById("pj-"+n);
+    if(!el) continue;
+    if(!u.progress) u.progress = {};
+    if(!u.progress[n]) u.progress[n] = {text:"",files:[]};
+    const raw = (el.value||"").trim();
+    if(raw === ""){
+      // Vaciar = volver a "pendiente". Solo toca la nota, jamás el texto/archivos.
+      if(typeof u.progress[n].score === 'number'){ delete u.progress[n].score; delete u.progress[n].scoredBy; delete u.progress[n].scoredAt; changed++; }
+      continue;
+    }
+    const v = clampScore(raw);
+    if(v === null) continue; // valor no numérico: ignorar, no borra nada
+    if(u.progress[n].score !== v){
+      u.progress[n].score = v;
+      u.progress[n].scoredBy = grader;
+      u.progress[n].scoredAt = Date.now();
+      changed++;
+    }
+  }
+  saveDB();
+  toast(changed ? "Notas de proyectos guardadas" : "Sin cambios");
   const active = document.querySelector("#d-tabs .tab.active");
   if(active) active.click();
 }
@@ -4511,8 +4775,21 @@ function renderAdminCriterios(main){
     <p class="page-sub">Rúbrica oficial v2 (jun 2026): 4 criterios — Impacto 40, Adopción 30, Avance 20, Demo 10. Los sub-items que cada criterio observa están definidos en código (DEFAULT_CRITERIA) y se ven dentro de cada tarjeta abajo. Aquí puedes ajustar nombres, descripciones y pesos sin tocar los sub-items.</p>
     <div class="card" id="crit-box"></div>
     <div class="card"><h3>Resumen de pesos</h3><div id="crit-sum"></div></div>
+
+    <div class="card" style="border-left:4px solid var(--vp-green)">
+      <h3 style="margin-top:0">Pesos del Ranking · Índice del Reto</h3>
+      <p class="muted" style="margin:.2rem 0 .7rem">El ranking que todos ven se ordena por el <strong>Índice del Reto</strong>, una combinación de tres señales: el promedio de las notas por proyecto, la completitud objetiva (inscripción + entregas) y la evaluación final (rúbrica de arriba). Si no suman 100, el sistema normaliza automáticamente. La nota por proyecto solo entra cuando hay al menos 1 semana calificada, para no penalizar lo que aún no revisas.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;align-items:end">
+        <div><label>Promedio de proyectos %</label><input type="number" min="0" max="100" id="rw-project" value="${rankWeights().project}" oninput="setRankWeight('project',this.value)"/></div>
+        <div><label>Completitud %</label><input type="number" min="0" max="100" id="rw-completion" value="${rankWeights().completion}" oninput="setRankWeight('completion',this.value)"/></div>
+        <div><label>Evaluación final %</label><input type="number" min="0" max="100" id="rw-final" value="${rankWeights().final}" oninput="setRankWeight('final',this.value)"/></div>
+      </div>
+      <div id="rw-sum" style="margin-top:.6rem"></div>
+      <button class="btn btn--ghost btn--sm" style="margin-top:.5rem" onclick="resetRankWeights()">Restaurar 50 / 30 / 20</button>
+    </div>
   `;
   paintCriterios();
+  paintRankWeights();
 }
 function paintCriterios(){
   const box = document.getElementById("crit-box");
@@ -4539,6 +4816,30 @@ function paintCriterios(){
 function paintSum(){
   const total = DB.criteria.reduce((a,c)=>a+(c.weight||0),0);
   document.getElementById("crit-sum").innerHTML = `<p>Suma de pesos: <strong style="color:${total===100?'var(--vp-green-deep)':'var(--vp-red)'}">${total}%</strong> ${total===100?'✓':' — ajusta para que sumen 100'}</p>`;
+}
+/* ----- Pesos del Índice del Reto (ranking) ----- */
+function setRankWeight(key, val){
+  if(!DB.config) DB.config = {};
+  if(!DB.config.rankWeights) DB.config.rankWeights = {project:50,completion:30,final:20};
+  DB.config.rankWeights[key] = Math.max(0, parseFloat(val)||0);
+  saveDB();
+  paintRankWeights();
+}
+function resetRankWeights(){
+  if(!DB.config) DB.config = {};
+  DB.config.rankWeights = {project:50,completion:30,final:20};
+  saveDB();
+  ['project','completion','final'].forEach(k=>{ const el=document.getElementById('rw-'+k); if(el) el.value=DB.config.rankWeights[k]; });
+  paintRankWeights();
+  toast('Pesos restaurados a 50 / 30 / 20');
+}
+function paintRankWeights(){
+  const el = document.getElementById('rw-sum');
+  if(!el) return;
+  const w = rankWeights();
+  const total = w.project + w.completion + w.final;
+  const pct = x => total ? Math.round(x/total*100) : 0;
+  el.innerHTML = `<p class="muted" style="margin:0">Suma: <strong style="color:${total===100?'var(--vp-green-deep)':'var(--vp-navy)'}">${total}%</strong>${total===100?' ✓':' — se normaliza automáticamente'}. Peso efectivo en el ranking: Proyectos <strong>${pct(w.project)}%</strong> · Completitud <strong>${pct(w.completion)}%</strong> · Final <strong>${pct(w.final)}%</strong>.</p>`;
 }
 
 /* ---------- 7.b · ADMIN: editar recursos + ayuda + config ---------- */
