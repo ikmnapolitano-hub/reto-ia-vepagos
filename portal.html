@@ -185,6 +185,19 @@ textarea{min-height:80px;resize:vertical}
 .status-banner h3{margin:0 0 .3rem;font-family:var(--fd);font-size:1.1rem;letter-spacing:.02em}
 .status-banner p{margin:0;color:var(--vp-text-2)}
 
+/* ---- Tarjeta de avance semanal (vista participante) ---- */
+.week-card{position:relative;transition:box-shadow .2s ease,border-color .2s ease}
+.week-card--review{border-color:rgba(220,38,38,.30)}
+.week-card--approved{border-color:rgba(0,206,124,.30)}
+.week-card--review::before,.week-card--approved::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:4px;border-radius:0 4px 4px 0}
+.week-card--review::before{background:var(--vp-red)}
+.week-card--approved::before{background:var(--vp-green)}
+.week-head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap}
+.week-head h3{margin-bottom:.15rem}
+.week-badges{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;margin-top:.7rem}
+.badge--score{background:linear-gradient(135deg,rgba(0,31,96,.10),rgba(0,206,124,.14));color:var(--vp-navy);border:1px solid rgba(0,31,96,.14);font-weight:700}
+.week-section-label{display:block;font-size:.74rem;text-transform:uppercase;letter-spacing:.06em;color:var(--vp-text-soft);font-weight:700;margin-bottom:.4rem}
+
 .hidden{display:none!important}
 
 .criteria-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:.75rem;padding:.55rem 0;border-bottom:1px dashed var(--vp-line);align-items:center;font-size:.9rem}
@@ -1752,6 +1765,11 @@ function weekStatusBadge(p){
   const i = weekStatusInfo(p);
   return `<span class="badge ${i.cls}" title="Estado de revisión del comité">${i.icon} ${i.label}</span>`;
 }
+/* ----- Reentrega: el participante corrigió una semana que el comité ya había revisado.
+   Se marca con resubmittedAt al corregir, y se LIMPIA (delete) en cuanto el comité
+   vuelve a calificar o cambia el estado de esa semana. Determinista, sin comparar tiempos. ----- */
+function isResubmitted(p){ return !!(p && p.resubmittedAt); }
+function resubmittedBadge(p){ return isResubmitted(p) ? '<span class="badge badge--amber" title="El participante reentregó después de tu última revisión">🔁 Reentregado</span>' : ''; }
 /* Historial de avances de una semana (cronológico). Compatibilidad:
    si hay texto legacy y aún no hay updates[], se trata como la 1ª entrada. */
 function weekHistory(p){
@@ -1793,6 +1811,7 @@ function setWeekStatus(email, n, status, viewerRole){
   const who = me ? (me.name||me.email) : (viewerRole==='admin'?'Admin':'Comité');
   if(status==='pendiente'){ delete p.status; delete p.statusBy; delete p.statusAt; }
   else { p.status = status; p.statusBy = who; p.statusAt = Date.now(); }
+  delete p.resubmittedAt; // el comité ya revisó: limpia la marca de reentrega
   saveDB();
   toast(status==='aprobado' ? ('Semana '+n+' aprobada') : status==='revisar' ? ('Semana '+n+' marcada a revisar') : ('Semana '+n+' sin estado'));
   // Refresca la vista activa (ficha del participante o panel de evaluación por semana)
@@ -1831,11 +1850,14 @@ function addProjectUpdate(n){
     p.updates.push({ text: p.text, ts: p.textTs||0 });
   }
   const wasEmpty = weekHistory(p).length===0 && !(p.files && p.files.length);
+  // ¿La semana ya había sido revisada por el comité? Si sí, esto es una REENTREGA.
+  const wasReviewed = (typeof p.score==='number' && !isNaN(p.score)) || !!p.status;
   p.updates.push({ text: val, ts: Date.now() });
   // Mantén p.text = último resumen para no romper conteos de avance ni el ranking
   p.text = val;
+  if(wasReviewed) p.resubmittedAt = Date.now();
   saveDB();
-  toast("Actualización agregada a Semana "+n);
+  toast(wasReviewed ? ("Reentregado · el comité revisará tu corrección") : ("Actualización agregada a Semana "+n));
   if(wasEmpty){ confetti(); }
   goto("avances");
 }
@@ -3299,33 +3321,39 @@ function renderAvances(main){
     ${SEMANAS.map(s=>{
       const p = u.progress[s.n] || {text:"",files:[]};
       const wi = weekStatusInfo(p);
-      const statusBanner = wi.key==='revisar'
-        ? `<div class="status-banner rej" style="margin-top:.6rem"><h3 style="margin:0">⚠ Necesita revisión</h3><p style="margin:.2rem 0 0">El comité encontró una falla mayor en esta entrega. Lee los comentarios y sube una actualización para corregirla.</p></div>`
-        : wi.key==='aprobado'
-          ? `<div class="status-banner" style="margin-top:.6rem;background:rgba(0,206,124,.10);border-left:4px solid var(--vp-green)"><h3 style="margin:0;color:var(--vp-green-deep)">✓ Proyecto aprobado</h3><p style="margin:.2rem 0 0">El comité aprobó tu entrega de esta semana. ¡Bien hecho!</p></div>`
-          : '';
+      const resub = isResubmitted(p);
+      const statusBanner = resub
+        ? `<div class="status-banner" style="margin-top:.6rem;background:rgba(245,158,11,.12);border-left:4px solid #F59E0B"><h3 style="margin:0;color:#B45309">🔁 Reentregado</h3><p style="margin:.2rem 0 0">Enviaste tu corrección. El comité la revisará y actualizará la nota o el estado.</p></div>`
+        : wi.key==='revisar'
+          ? `<div class="status-banner rej" style="margin-top:.6rem"><h3 style="margin:0">⚠ Necesita revisión</h3><p style="margin:.2rem 0 0">El comité encontró una falla mayor en esta entrega. Lee los comentarios y <strong>reentrega</strong> una corrección.</p></div>`
+          : wi.key==='aprobado'
+            ? `<div class="status-banner" style="margin-top:.6rem;background:rgba(0,206,124,.10);border-left:4px solid var(--vp-green)"><h3 style="margin:0;color:var(--vp-green-deep)">✓ Proyecto aprobado</h3><p style="margin:.2rem 0 0">El comité aprobó tu entrega de esta semana. ¡Bien hecho!</p></div>`
+            : '';
       const comments = (p.comments&&p.comments.length) ? `<div style="margin-top:.85rem">
             <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--vp-navy);font-weight:700">Comentarios del comité</label>
             ${weekCommentsHTML(p)}
           </div>` : '';
-      return `<div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+      const addLabel = (wi.key==='revisar' && !resub) ? 'Reentregar corrección' : 'Agregar al proyecto';
+      const cardState = wi.key==='revisar' ? ' week-card--review' : wi.key==='aprobado' ? ' week-card--approved' : '';
+      return `<div class="card week-card${cardState}">
+        <div class="week-head">
           <div>
-            <h3 style="margin-bottom:.1rem">${s.titulo}</h3>
+            <h3>${s.titulo}</h3>
             <p class="muted">${s.descripcion}</p>
           </div>
-          <div style="display:flex;flex-direction:column;gap:.35rem;align-items:flex-end">
-            ${weekStatusBadge(p)}
-            ${p.text||p.files.length?'<span class="badge badge--green">Con avance</span>':'<span class="badge badge--gray">Pendiente</span>'}
-            ${typeof p.score==='number' && !isNaN(p.score)
-              ? `<span class="badge badge--navy" title="Nota del comité para esta semana">★ ${p.score}/100</span>`
-              : '<span class="badge badge--gray" style="opacity:.7" title="El comité aún no califica esta semana">Sin evaluar</span>'}
-          </div>
+        </div>
+        <div class="week-badges">
+          ${weekStatusBadge(p)}
+          ${resubmittedBadge(p)}
+          ${p.text||p.files.length?'<span class="badge badge--green">Con avance</span>':'<span class="badge badge--gray">Pendiente</span>'}
+          ${typeof p.score==='number' && !isNaN(p.score)
+            ? `<span class="badge badge--score" title="Nota del comité para esta semana">★ ${p.score}/100</span>`
+            : '<span class="badge badge--gray" style="opacity:.7" title="El comité aún no califica esta semana">Sin evaluar</span>'}
         </div>
         ${statusBanner}
-        <div style="margin-top:.85rem">
-          <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--vp-navy);font-weight:700">Historial del proyecto</label>
-          <div style="margin-top:.4rem">${weekHistoryHTML(p)}</div>
+        <div style="margin-top:1rem">
+          <label class="week-section-label">Historial del proyecto</label>
+          <div>${weekHistoryHTML(p)}</div>
         </div>
         ${comments}
         <div class="field" style="margin-top:.85rem">
@@ -3337,7 +3365,7 @@ function renderAvances(main){
           <label class="upload-btn">+ Adjuntar archivos<input type="file" multiple onchange="uploadProgress(${s.n}, this.files)"/></label>
         </div>
         ${p.files.length?'<div>'+p.files.map((f,i)=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · ${fmtDate(f.ts)}</div></div><div style="display:flex;gap:.4rem"><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${fileHref(f)}" target="_blank" rel="noopener">Descargar</a><button class="btn btn--ghost btn--sm" onclick="removeProgressFile(${s.n},${i})">Quitar</button></div></div>`).join("")+'</div>':""}
-        <div style="margin-top:.75rem;display:flex;gap:.5rem"><button class="btn btn--primary btn--sm" onclick="addProjectUpdate(${s.n})">Agregar al proyecto</button></div>
+        <div style="margin-top:.75rem;display:flex;gap:.5rem"><button class="btn btn--primary btn--sm" onclick="addProjectUpdate(${s.n})">${addLabel}</button></div>
       </div>`;
     }).join("")}
   `;
@@ -3363,12 +3391,15 @@ async function uploadProgress(n, files){
   }
   const u = DB.users[SESSION.email];
   const wasEmptyWeek = !u.progress[n].files.length && !u.progress[n].text;
+  // ¿La semana ya estaba revisada? Subir un archivo nuevo cuenta como reentrega.
+  const wasReviewed = (typeof u.progress[n].score==='number' && !isNaN(u.progress[n].score)) || !!u.progress[n].status;
   toast("⟳ Subiendo "+arr.length+" archivo"+(arr.length>1?'s':'')+" a Semana "+n+"…");
   try{
     for(const f of arr){
       const meta = await uploadFileToBlobs(f, `progress/${SESSION.email}/sem${n}`);
       u.progress[n].files.push(meta);
     }
+    if(wasReviewed) u.progress[n].resubmittedAt = Date.now();
     saveDB();
     if(wasEmptyWeek) confetti();
     toast("✓ Subiste "+arr.length+" archivo"+(arr.length>1?'s':'')+" a Semana "+n);
@@ -4399,6 +4430,7 @@ function renderAdminEvaluacion(main){
       <select class="role-pick" id="evf-week" onchange="renderAdminEvalTabla()">${weekOpts}</select>
       <select class="role-pick" id="evf-filter" onchange="renderAdminEvalTabla()">
         <option value="pendientes">⏳ Pendientes por evaluar</option>
+        <option value="reentregados">🔁 Reentregados (re-revisar)</option>
         <option value="entregaron-pend">📥 Entregaron y faltan por evaluar</option>
         <option value="evaluados">✓ Ya evaluados</option>
         <option value="todos">Todos</option>
@@ -4421,6 +4453,7 @@ function renderAdminEvalTabla(){
   const fa = document.getElementById("evf-area")?.value||"";
   const hasScore  = u => { const p=(u.progress||{})[n]; return !!(p && typeof p.score==='number' && !isNaN(p.score)); };
   const delivered = u => { const p=(u.progress||{})[n]; return !!(p && (p.text || (p.files||[]).length)); };
+  const resubd    = u => isResubmitted((u.progress||{})[n]);
   // Universo: participantes reales que NO son líderes (los líderes no compiten ni se califican)
   const all = Object.values(DB.users).filter(isRealParticipant).filter(u=>!isLeader(u));
   // Métricas globales de la semana (sobre todo el universo, sin búsqueda)
@@ -4431,14 +4464,19 @@ function renderAdminEvalTabla(){
   const scoreVals = all.filter(hasScore).map(u=>u.progress[n].score);
   const avg = scoreVals.length ? scoreVals.reduce((a,b)=>a+b,0)/scoreVals.length : 0;
   const pct = all.length ? Math.round(evaluated/all.length*100) : 0;
+  const resubCount = all.filter(resubd).length; // reentregas en ESTA semana (pendientes de re-revisión)
+  // Reentregas en TODAS las semanas (visibilidad cruzada sin cambiar de semana)
+  let resubTotal = 0; const resubByWeek = [];
+  for(let w=1;w<=5;w++){ const c = all.filter(x=>isResubmitted((x.progress||{})[w])).length; resubByWeek.push(c); resubTotal += c; }
   // Filtros de vista
   let rows = all
     .filter(u=>!q || (u.name+" "+u.email+" "+(u.area||'')+" "+(u.cargo||'')).toLowerCase().includes(q))
     .filter(u=>!fa || u.area===fa);
   if(filter==='pendientes')           rows = rows.filter(u=>!hasScore(u));
+  else if(filter==='reentregados')    rows = rows.filter(resubd);
   else if(filter==='evaluados')       rows = rows.filter(hasScore);
   else if(filter==='entregaron-pend') rows = rows.filter(u=>delivered(u) && !hasScore(u));
-  rows.sort((a,b)=>a.name.localeCompare(b.name));
+  rows.sort((a,b)=> (resubd(b)-resubd(a)) || a.name.localeCompare(b.name));
 
   const sum = document.getElementById("ev-summary");
   if(sum) sum.innerHTML = `
@@ -4449,12 +4487,14 @@ function renderAdminEvalTabla(){
         <div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Entregaron</div><div style="font-family:var(--fd);font-size:1.4rem;font-weight:800;color:var(--vp-navy)">${deliveredCount}</div></div>
         <div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Entregaron sin nota</div><div style="font-family:var(--fd);font-size:1.4rem;font-weight:800;color:${deliveredPending?'var(--vp-amber,#B45309)':'var(--vp-green-deep)'}">${deliveredPending}</div></div>
         <div><div class="muted" style="font-size:.7rem;text-transform:uppercase">Promedio nota</div><div style="font-family:var(--fd);font-size:1.4rem;font-weight:800;color:var(--vp-navy)">${avg.toFixed(1)}</div></div>
+        <div><div class="muted" style="font-size:.7rem;text-transform:uppercase">🔁 Reentregas</div><div style="font-family:var(--fd);font-size:1.4rem;font-weight:800;color:${resubCount?'#B45309':'var(--vp-green-deep)'}">${resubCount}</div></div>
       </div>
       <div style="flex:1;min-width:180px;max-width:360px">
         <div class="muted" style="font-size:.72rem;margin-bottom:.25rem">Progreso de evaluación · Semana ${n}: <strong>${pct}%</strong></div>
         <div style="height:10px;background:var(--vp-line);border-radius:999px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--vp-green);transition:width .3s"></div></div>
       </div>
-    </div>`;
+    </div>
+    ${resubTotal>0?`<div class="card" style="background:rgba(245,158,11,.10);border-left:4px solid #F59E0B;padding:.7rem .9rem"><strong style="color:#B45309">🔁 ${resubTotal} reentrega${resubTotal>1?'s':''} pendiente${resubTotal>1?'s':''} de re-revisión</strong> <span class="muted">— ${resubByWeek.map((c,i)=>c?`Sem ${i+1}: ${c}`:null).filter(Boolean).join(' · ')}. Vuelve a calificar o cambia el estado para marcarlas como vistas.</span></div>`:''}`;
 
   const body = rows.map(u=>{
     const p = (u.progress||{})[n]||{};
@@ -4466,7 +4506,7 @@ function renderAdminEvalTabla(){
       <td>${del?'<span class="badge badge--green">Entregó</span>':'<span class="badge badge--gray">Sin entrega</span>'}</td>
       <td>${has?'<span class="badge badge--green">Evaluado</span>':'<span class="badge badge--amber">Pendiente</span>'}</td>
       <td><div class="score-input"><input type="number" min="0" max="100" step="1" value="${has?p.score:''}" placeholder="—" style="width:74px" onchange="setWeekScoreInline('${escapeAttr(u.email)}',${n},this.value)"/><span class="muted">/100</span></div></td>
-      <td style="white-space:nowrap">${weekStatusBadge(p)}<div style="display:flex;gap:.25rem;margin-top:.3rem">
+      <td style="white-space:nowrap">${isResubmitted(p)?resubmittedBadge(p)+'<br>':''}${weekStatusBadge(p)}<div style="display:flex;gap:.25rem;margin-top:.3rem">
         <button class="btn btn--sm ${p.status==='aprobado'?'btn--primary':'btn--ghost'}" title="Aprobar esta semana" onclick="setWeekStatus('${escapeAttr(u.email)}',${n},'aprobado','admin')">✓</button>
         <button class="btn btn--sm ${p.status==='revisar'?'btn--danger':'btn--ghost'}" title="Marcar a revisar (falla mayor)" onclick="setWeekStatus('${escapeAttr(u.email)}',${n},'revisar','admin')">⚠</button>
       </div></td>
@@ -4476,9 +4516,11 @@ function renderAdminEvalTabla(){
   const box = document.getElementById("ev-tabla");
   if(box) box.innerHTML = rows.length
     ? `<table><thead><tr><th>Participante</th><th>Área</th><th>Entrega</th><th>Evaluación</th><th>Nota (0–100)</th><th>Estado</th><th></th></tr></thead><tbody>${body}</tbody></table>`
-    : (filter==='pendientes'||filter==='entregaron-pend'
-        ? '<p class="muted">🎉 No queda nadie por evaluar en este filtro para la Semana '+n+'.</p>'
-        : '<p class="muted">Sin resultados con estos filtros.</p>');
+    : (filter==='reentregados'
+        ? '<p class="muted">✓ No hay reentregas pendientes de re-revisión en la Semana '+n+'.</p>'
+        : (filter==='pendientes'||filter==='entregaron-pend'
+            ? '<p class="muted">🎉 No queda nadie por evaluar en este filtro para la Semana '+n+'.</p>'
+            : '<p class="muted">Sin resultados con estos filtros.</p>'));
 }
 /* Guarda la nota de UNA semana desde la vista de evaluación. No destructivo:
    vacío = vuelve a "pendiente" (solo borra la nota, conserva texto y archivos). */
@@ -4491,6 +4533,7 @@ function setWeekScoreInline(email, n, val){
   const raw = (val==null ? '' : String(val)).trim();
   if(raw === ""){
     if(typeof u.progress[n].score === 'number'){ delete u.progress[n].score; delete u.progress[n].scoredBy; delete u.progress[n].scoredAt; }
+    delete u.progress[n].resubmittedAt; // el comité revisó: limpia reentrega
     saveDB(); toast("Semana "+n+" marcada como pendiente"); renderAdminEvalTabla(); return;
   }
   const v = clampScore(raw);
@@ -4498,6 +4541,7 @@ function setWeekScoreInline(email, n, val){
   u.progress[n].score = v;
   u.progress[n].scoredBy = grader;
   u.progress[n].scoredAt = Date.now();
+  delete u.progress[n].resubmittedAt; // el comité revisó: limpia reentrega
   saveDB(); toast("Nota guardada · Semana "+n+" = "+v); renderAdminEvalTabla();
 }
 
@@ -4689,7 +4733,8 @@ function renderDetalleTab(tab, u, viewerRole){
       ${SEMANAS.map(s=>{
         const p = u.progress[s.n]||{text:"",files:[]};
         const hasScore = typeof p.score === 'number' && !isNaN(p.score);
-        return `<div class="card"><h3>${s.titulo}</h3><p class="muted">${s.descripcion}</p>
+        return `<div class="card" style="${isResubmitted(p)?'border-left:4px solid #F59E0B':''}"><h3 style="margin-bottom:.1rem">${s.titulo} ${resubmittedBadge(p)}</h3><p class="muted">${s.descripcion}</p>
+          ${isResubmitted(p)?`<div class="status-banner" style="margin:.5rem 0;background:rgba(245,158,11,.12);border-left:4px solid #F59E0B"><h3 style="margin:0;color:#B45309">🔁 Reentregado${p.resubmittedAt?' · '+fmtDate(p.resubmittedAt):''}</h3><p style="margin:.2rem 0 0">El participante corrigió esta semana después de tu última revisión. Mira el historial abajo y vuelve a poner la nota o cambia el estado para marcarlo como visto.</p></div>`:''}
           <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;background:var(--vp-bg-soft);border-radius:10px;padding:.6rem .8rem;margin:.2rem 0 .6rem">
             <div>
               <strong style="font-size:.9rem">Nota del comité</strong>
@@ -4812,6 +4857,7 @@ function saveProjectScores(email, viewerRole){
       u.progress[n].score = v;
       u.progress[n].scoredBy = grader;
       u.progress[n].scoredAt = Date.now();
+      delete u.progress[n].resubmittedAt; // re-calificó: limpia reentrega
       changed++;
     }
   }
