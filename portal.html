@@ -814,6 +814,26 @@ const MANAGER_EMAILS = ["odumont@vepagos.com","lperez@vepagos.com","ayvic23@gmai
 /* Admins (perfil administrador) */
 const ADMIN_EMAILS = ["ikmnapolitano@gmail.com","cmorales@vepagos.com"];
 
+/* ---------- Perfiles EXCLUIDOS del reto (rechazados por el comité) ----------
+   Se conservan sus datos (no se borran), pero NO pueden participar y NO cuentan
+   en rankings, conteos ni estadísticas: no suman ni restan. */
+const EXCLUDED_EMAILS = ["mdelgado@somosvepagos.com","juliethr19@gmail.com"];
+function isExcluded(email){ return EXCLUDED_EMAILS.includes((email||"").toLowerCase()); }
+/* Aplica el estado "rechazado" a los perfiles excluidos en cualquier DB cargada
+   (semilla local o blob remoto), conservando el perfil pero sin participación. */
+function enforceExclusions(db){
+  if(!db || !db.users) return;
+  EXCLUDED_EMAILS.forEach(em=>{
+    const u = db.users[em.toLowerCase()];
+    if(u){
+      u.excluded = true;
+      u.status = "rechazado";
+      u.assignedProblem = "";
+      u.approvedNote = "Inscripción no aprobada por el comité. Este perfil no participa en el reto.";
+    }
+  });
+}
+
 /* Criterios de evaluación por defecto (rúbrica oficial Reto IA Vepagos)
    Versión v2 (jun 2026): 4 criterios, cada uno con sub-items que el comité observa.
    Si cambias IDs aquí, súbele el número de versión en CRITERIA_VERSION para forzar migración. */
@@ -1080,6 +1100,7 @@ function loadDB(){
       if(!Array.isArray(db.passResetRequests)) db.passResetRequests = []; // solicitudes "olvidé mi clave"
       // Purga binarios base64 legacy (rompían la quota de localStorage)
       purgeLegacyBinaries(db);
+      enforceExclusions(db); // perfiles rechazados: status rechazado, sin participación
       return db;
     }
   }catch(e){}
@@ -1115,7 +1136,9 @@ function loadDB(){
     u.assignedProblem = u.problemas[0] || "";
     u.approvedNote = "Aprobado para participar. Ver problema asignado y comenzar Semana 1.";
   });
-  return {users, criteria: JSON.parse(JSON.stringify(DEFAULT_CRITERIA)), criteriaVersion: CRITERIA_VERSION, resources: JSON.parse(JSON.stringify(DEFAULT_RESOURCES)), resourcesVersion: RESOURCES_VERSION, config: Object.assign({}, DEFAULT_CONFIG), configVersion: CONFIG_VERSION, campaigns: [], passResetRequests: []};
+  const seeded = {users, criteria: JSON.parse(JSON.stringify(DEFAULT_CRITERIA)), criteriaVersion: CRITERIA_VERSION, resources: JSON.parse(JSON.stringify(DEFAULT_RESOURCES)), resourcesVersion: RESOURCES_VERSION, config: Object.assign({}, DEFAULT_CONFIG), configVersion: CONFIG_VERSION, campaigns: [], passResetRequests: []};
+  enforceExclusions(seeded); // perfiles rechazados: status rechazado, sin participación
+  return seeded;
 }
 function saveDB(){
   try{
@@ -1222,6 +1245,7 @@ async function pullRemote(){
           if(!u.progress) u.progress = {};
           for(let n=1;n<=5;n++){ if(!u.progress[n]) u.progress[n] = {text:"",files:[]}; }
         });
+        enforceExclusions(DB); // perfiles rechazados: status rechazado, sin participación
         // CRÍTICO: el blob remoto puede traer binarios base64 legacy.
         // Si no los limpiamos aquí, se re-inflan en localStorage y nunca baja del 98%.
         const freed = purgeLegacyBinaries(DB);
@@ -1352,6 +1376,7 @@ async function doLogin(){
   if(btn){ btn.disabled = false; btn.textContent = prevTxt; }
   const u = DB.users[email];
   if(!u){errBox.textContent="Ese correo no está registrado en el reto."; errBox.classList.remove("hidden"); return;}
+  if(isExcluded(email)){errBox.textContent="Tu inscripción al Reto IA no fue aprobada por el comité, por lo que este perfil no puede participar. Si crees que es un error, escribe a Isabella."; errBox.classList.remove("hidden"); return;}
   if(u.pass !== pass){errBox.textContent="Contraseña incorrecta. Si olvidaste tu clave, usa \"¿Olvidaste tu clave?\" abajo para que te la reseteemos."; errBox.classList.remove("hidden"); return;}
   // Determinar roles posibles
   const roles = rolesFor(email);
@@ -1364,13 +1389,14 @@ function saveSession(){sessionStorage.setItem("vp-session",JSON.stringify(SESSIO
 function tryRestore(){
   try{
     const s = sessionStorage.getItem("vp-session");
-    if(s){SESSION=JSON.parse(s); if(DB.users[SESSION.email]){showApp(); return true;}}
+    if(s){SESSION=JSON.parse(s); if(DB.users[SESSION.email] && !isExcluded(SESSION.email)){showApp(); return true;}}
   }catch(e){}
   return false;
 }
 
 function rolesFor(email){
   email = email.toLowerCase();
+  if(isExcluded(email)) return []; // perfil rechazado: sin roles, no participa
   const roles = [];
   if(ADMIN_EMAILS.includes(email)) roles.push("admin");
   if(MANAGER_EMAILS.includes(email) || hasReports(email)) roles.push("manager");
@@ -1379,7 +1405,7 @@ function rolesFor(email){
   if(u && u.problemas && u.problemas.length>0) roles.push("participant");
   return roles.length ? roles : ["participant"];
 }
-function isRealParticipant(u){return u && u.problemas && u.problemas.length>0;}
+function isRealParticipant(u){return u && u.problemas && u.problemas.length>0 && !isExcluded(u.email);}
 
 /* Estado de inscripción (3 pasos) */
 function enrollmentChecklist(u){
@@ -1714,6 +1740,105 @@ function projectScoreInfo(u){
   return { avg: graded ? sum/graded : 0, graded };
 }
 function projectAvg(u){ return projectScoreInfo(u).avg; }
+
+/* ----- Estado de revisión por semana: aprobado / a revisar / pendiente ----- */
+function weekStatusInfo(p){
+  const s = p && p.status;
+  if(s==='aprobado') return {key:'aprobado', label:'Aprobado',                cls:'badge--green', icon:'✓'};
+  if(s==='revisar')  return {key:'revisar',  label:'A revisar · falla mayor', cls:'badge--red',   icon:'⚠'};
+  return {key:'pendiente', label:'Sin revisar', cls:'badge--gray', icon:'•'};
+}
+function weekStatusBadge(p){
+  const i = weekStatusInfo(p);
+  return `<span class="badge ${i.cls}" title="Estado de revisión del comité">${i.icon} ${i.label}</span>`;
+}
+/* Historial de avances de una semana (cronológico). Compatibilidad:
+   si hay texto legacy y aún no hay updates[], se trata como la 1ª entrada. */
+function weekHistory(p){
+  const out = [];
+  if(p && Array.isArray(p.updates) && p.updates.length){
+    p.updates.forEach(it=>{ if(it && it.text!=null) out.push({text:it.text, ts:it.ts||0}); });
+  } else if(p && p.text && String(p.text).trim()){
+    out.push({text:p.text, ts:p.textTs||0});
+  }
+  return out;
+}
+function weekHistoryHTML(p){
+  const h = weekHistory(p);
+  if(!h.length) return '<p class="muted">— sin texto —</p>';
+  return '<div style="display:flex;flex-direction:column;gap:.5rem">'+h.map((it,idx)=>`
+    <div style="border-left:3px solid var(--vp-line);padding:.1rem 0 .1rem .7rem">
+      <div class="muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.03em">${idx===0?'Entrega inicial':'Actualización '+idx}${it.ts?' · '+fmtDate(it.ts):''}</div>
+      <div style="white-space:pre-wrap">${escapeHTML(it.text)}</div>
+    </div>`).join('')+'</div>';
+}
+/* Comentarios del comité para una semana (read-only) */
+function weekCommentsHTML(p){
+  const c = (p && Array.isArray(p.comments)) ? p.comments : [];
+  if(!c.length) return '';
+  return '<div style="display:flex;flex-direction:column;gap:.4rem;margin-top:.4rem">'+c.slice().reverse().map(fb=>`
+    <div style="background:var(--vp-bg-soft);border-radius:8px;padding:.5rem .7rem">
+      <div class="muted" style="font-size:.72rem"><strong>${escapeHTML(fb.from||'Comité')}</strong> · ${escapeHTML(fb.role||'')}${fb.ts?' · '+fmtDate(fb.ts):''}</div>
+      <div style="white-space:pre-wrap;margin-top:.15rem">${linkifyText(fb.text||'')}</div>
+    </div>`).join('')+'</div>';
+}
+
+/* ----- Acciones (no destructivas): estado y comentario por semana (comité) ----- */
+function setWeekStatus(email, n, status, viewerRole){
+  const u = DB.users[email]; if(!u) return;
+  if(!u.progress) u.progress = {};
+  if(!u.progress[n]) u.progress[n] = {text:"",files:[]};
+  const p = u.progress[n];
+  const me = (SESSION && DB.users[SESSION.email]) || null;
+  const who = me ? (me.name||me.email) : (viewerRole==='admin'?'Admin':'Comité');
+  if(status==='pendiente'){ delete p.status; delete p.statusBy; delete p.statusAt; }
+  else { p.status = status; p.statusBy = who; p.statusAt = Date.now(); }
+  saveDB();
+  toast(status==='aprobado' ? ('Semana '+n+' aprobada') : status==='revisar' ? ('Semana '+n+' marcada a revisar') : ('Semana '+n+' sin estado'));
+  // Refresca la vista activa (ficha del participante o panel de evaluación por semana)
+  const active = document.querySelector("#d-tabs .tab.active");
+  if(active) active.click();
+  else if(document.getElementById("ev-tabla")) renderAdminEvalTabla();
+}
+function addWeekComment(email, n, viewerRole){
+  const u = DB.users[email]; if(!u) return;
+  if(!u.progress) u.progress = {};
+  if(!u.progress[n]) u.progress[n] = {text:"",files:[]};
+  const p = u.progress[n];
+  const ta = document.getElementById("wc-"+n);
+  const val = (ta ? ta.value : "").trim();
+  if(!val){ toast("Escribe un comentario antes de publicar"); return; }
+  if(!Array.isArray(p.comments)) p.comments = [];
+  const me = (SESSION && DB.users[SESSION.email]) || null;
+  p.comments.push({ from: me?me.name:'Comité', role: viewerRole==='admin'?'Admin':'Gerente', text: val, ts: Date.now() });
+  saveDB();
+  toast("Comentario agregado a Semana "+n);
+  const active = document.querySelector("#d-tabs .tab.active");
+  if(active) active.click();
+}
+/* Participante: agrega una actualización al proyecto SIN borrar lo anterior (append-only) */
+function addProjectUpdate(n){
+  const u = DB.users[SESSION.email];
+  if(!u.progress) u.progress = {};
+  if(!u.progress[n]) u.progress[n] = {text:"",files:[]};
+  const p = u.progress[n];
+  const ta = document.getElementById("upd-"+n);
+  const val = (ta ? ta.value : "").trim();
+  if(!val){ toast("Escribe tu actualización antes de agregar"); return; }
+  if(!Array.isArray(p.updates)) p.updates = [];
+  // Conserva el texto legacy como 1ª entrada del historial (no se pierde nada)
+  if(p.updates.length===0 && p.text && String(p.text).trim()){
+    p.updates.push({ text: p.text, ts: p.textTs||0 });
+  }
+  const wasEmpty = weekHistory(p).length===0 && !(p.files && p.files.length);
+  p.updates.push({ text: val, ts: Date.now() });
+  // Mantén p.text = último resumen para no romper conteos de avance ni el ranking
+  p.text = val;
+  saveDB();
+  toast("Actualización agregada a Semana "+n);
+  if(wasEmpty){ confetti(); }
+  goto("avances");
+}
 
 /* Pesos del Índice del Reto (editables por admin, con defaults seguros). */
 function rankWeights(){
@@ -3173,6 +3298,16 @@ function renderAvances(main){
     </div>
     ${SEMANAS.map(s=>{
       const p = u.progress[s.n] || {text:"",files:[]};
+      const wi = weekStatusInfo(p);
+      const statusBanner = wi.key==='revisar'
+        ? `<div class="status-banner rej" style="margin-top:.6rem"><h3 style="margin:0">⚠ Necesita revisión</h3><p style="margin:.2rem 0 0">El comité encontró una falla mayor en esta entrega. Lee los comentarios y sube una actualización para corregirla.</p></div>`
+        : wi.key==='aprobado'
+          ? `<div class="status-banner" style="margin-top:.6rem;background:rgba(0,206,124,.10);border-left:4px solid var(--vp-green)"><h3 style="margin:0;color:var(--vp-green-deep)">✓ Proyecto aprobado</h3><p style="margin:.2rem 0 0">El comité aprobó tu entrega de esta semana. ¡Bien hecho!</p></div>`
+          : '';
+      const comments = (p.comments&&p.comments.length) ? `<div style="margin-top:.85rem">
+            <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--vp-navy);font-weight:700">Comentarios del comité</label>
+            ${weekCommentsHTML(p)}
+          </div>` : '';
       return `<div class="card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
           <div>
@@ -3180,22 +3315,29 @@ function renderAvances(main){
             <p class="muted">${s.descripcion}</p>
           </div>
           <div style="display:flex;flex-direction:column;gap:.35rem;align-items:flex-end">
+            ${weekStatusBadge(p)}
             ${p.text||p.files.length?'<span class="badge badge--green">Con avance</span>':'<span class="badge badge--gray">Pendiente</span>'}
             ${typeof p.score==='number' && !isNaN(p.score)
               ? `<span class="badge badge--navy" title="Nota del comité para esta semana">★ ${p.score}/100</span>`
               : '<span class="badge badge--gray" style="opacity:.7" title="El comité aún no califica esta semana">Sin evaluar</span>'}
           </div>
         </div>
+        ${statusBanner}
+        <div style="margin-top:.85rem">
+          <label style="font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--vp-navy);font-weight:700">Historial del proyecto</label>
+          <div style="margin-top:.4rem">${weekHistoryHTML(p)}</div>
+        </div>
+        ${comments}
         <div class="field" style="margin-top:.85rem">
-          <label>Resumen de avance</label>
-          <textarea id="prog-${s.n}" placeholder="¿Qué hiciste, qué aprendiste, qué viene la próxima semana?">${escapeHTML(p.text||"")}</textarea>
+          <label>Agregar actualización <span class="muted" style="font-weight:400">— se suma al historial, no borra lo anterior</span></label>
+          <textarea id="upd-${s.n}" placeholder="¿Qué cambiaste o agregaste esta vez?"></textarea>
         </div>
         <div class="field">
           <label>Archivos (PDF, imágenes, capturas, video)</label>
           <label class="upload-btn">+ Adjuntar archivos<input type="file" multiple onchange="uploadProgress(${s.n}, this.files)"/></label>
         </div>
         ${p.files.length?'<div>'+p.files.map((f,i)=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · ${fmtDate(f.ts)}</div></div><div style="display:flex;gap:.4rem"><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${fileHref(f)}" target="_blank" rel="noopener">Descargar</a><button class="btn btn--ghost btn--sm" onclick="removeProgressFile(${s.n},${i})">Quitar</button></div></div>`).join("")+'</div>':""}
-        <div style="margin-top:.75rem;display:flex;gap:.5rem"><button class="btn btn--primary btn--sm" onclick="saveProgress(${s.n})">Guardar avance</button></div>
+        <div style="margin-top:.75rem;display:flex;gap:.5rem"><button class="btn btn--primary btn--sm" onclick="addProjectUpdate(${s.n})">Agregar al proyecto</button></div>
       </div>`;
     }).join("")}
   `;
@@ -4324,12 +4466,16 @@ function renderAdminEvalTabla(){
       <td>${del?'<span class="badge badge--green">Entregó</span>':'<span class="badge badge--gray">Sin entrega</span>'}</td>
       <td>${has?'<span class="badge badge--green">Evaluado</span>':'<span class="badge badge--amber">Pendiente</span>'}</td>
       <td><div class="score-input"><input type="number" min="0" max="100" step="1" value="${has?p.score:''}" placeholder="—" style="width:74px" onchange="setWeekScoreInline('${escapeAttr(u.email)}',${n},this.value)"/><span class="muted">/100</span></div></td>
+      <td style="white-space:nowrap">${weekStatusBadge(p)}<div style="display:flex;gap:.25rem;margin-top:.3rem">
+        <button class="btn btn--sm ${p.status==='aprobado'?'btn--primary':'btn--ghost'}" title="Aprobar esta semana" onclick="setWeekStatus('${escapeAttr(u.email)}',${n},'aprobado','admin')">✓</button>
+        <button class="btn btn--sm ${p.status==='revisar'?'btn--danger':'btn--ghost'}" title="Marcar a revisar (falla mayor)" onclick="setWeekStatus('${escapeAttr(u.email)}',${n},'revisar','admin')">⚠</button>
+      </div></td>
       <td><button class="btn btn--ghost btn--sm" onclick="window.__detailInitialTab='avances';viewDetail('${escapeAttr(u.email)}','a-detalle')">Ver avance</button></td>
     </tr>`;
   }).join("");
   const box = document.getElementById("ev-tabla");
   if(box) box.innerHTML = rows.length
-    ? `<table><thead><tr><th>Participante</th><th>Área</th><th>Entrega</th><th>Evaluación</th><th>Nota (0–100)</th><th></th></tr></thead><tbody>${body}</tbody></table>`
+    ? `<table><thead><tr><th>Participante</th><th>Área</th><th>Entrega</th><th>Evaluación</th><th>Nota (0–100)</th><th>Estado</th><th></th></tr></thead><tbody>${body}</tbody></table>`
     : (filter==='pendientes'||filter==='entregaron-pend'
         ? '<p class="muted">🎉 No queda nadie por evaluar en este filtro para la Semana '+n+'.</p>'
         : '<p class="muted">Sin resultados con estos filtros.</p>');
@@ -4425,7 +4571,9 @@ function renderDetalle(main, email, viewerRole){
 
     <div class="grid g3">
       <div class="kpi"><p class="label">Avances</p><div class="value">${Object.values(u.progress).filter(p=>p.text||p.files.length).length}<span style="font-size:1rem;color:var(--vp-text-soft)">/5</span></div></div>
-      <div class="kpi"><p class="label">Puntaje</p><div class="value">${sc.total.toFixed(1)}<span style="font-size:1rem;color:var(--vp-text-soft)">/100</span></div></div>
+      <div class="kpi"><p class="label">Proyectos (promedio)</p><div class="value">${projectScoreInfo(u).avg.toFixed(1)}<span style="font-size:1rem;color:var(--vp-text-soft)">/100</span></div><p class="muted" style="margin:.15rem 0 0;font-size:.72rem">${projectScoreInfo(u).graded}/5 calificadas</p></div>
+      <div class="kpi" style="border-left:4px solid var(--vp-green)"><p class="label">Índice del Reto</p><div class="value" style="color:var(--vp-green-deep)">${retoIndex(u).toFixed(1)}<span style="font-size:1rem;color:var(--vp-text-soft)">/100</span></div></div>
+      <div class="kpi"><p class="label">Eval. final (rúbrica)</p><div class="value">${sc.total.toFixed(1)}<span style="font-size:1rem;color:var(--vp-text-soft)">/100</span></div></div>
       <div class="kpi"><p class="label">Feedback</p><div class="value">${u.feedback.length}</div></div>
     </div>
 
@@ -4549,9 +4697,21 @@ function renderDetalleTab(tab, u, viewerRole){
             </div>
             <div class="score-input" style="min-width:120px"><input type="number" min="0" max="100" step="1" id="pj-${s.n}" value="${hasScore?p.score:''}" placeholder="—"/><span class="muted">/ 100</span></div>
           </div>
-          <h4>Resumen</h4>
-          <p style="white-space:pre-wrap">${p.text?escapeHTML(p.text):'<span class="muted">— sin texto —</span>'}</p>
-          <h4>Archivos</h4>
+          <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:.2rem 0 .7rem">
+            <strong style="font-size:.85rem">Estado del proyecto:</strong>
+            ${weekStatusBadge(p)}
+            <button class="btn btn--sm ${p.status==='aprobado'?'btn--primary':'btn--ghost'}" onclick="setWeekStatus('${escapeAttr(u.email)}',${s.n},'aprobado','${viewerRole}')">✓ Aprobar</button>
+            <button class="btn btn--sm ${p.status==='revisar'?'btn--danger':'btn--ghost'}" onclick="setWeekStatus('${escapeAttr(u.email)}',${s.n},'revisar','${viewerRole}')">⚠ A revisar</button>
+            ${p.status?`<button class="btn btn--ghost btn--sm" onclick="setWeekStatus('${escapeAttr(u.email)}',${s.n},'pendiente','${viewerRole}')">Quitar</button>`:''}
+            ${p.statusBy?`<span class="muted" style="font-size:.72rem">por ${escapeHTML(p.statusBy)}${p.statusAt?' · '+fmtDate(p.statusAt):''}</span>`:''}
+          </div>
+          <h4>Resumen / historial</h4>
+          ${weekHistoryHTML(p)}
+          <h4>Feedback del comité · esta semana</h4>
+          ${weekCommentsHTML(p)||'<p class="muted">— sin comentarios —</p>'}
+          <div class="field" style="margin-top:.4rem"><textarea id="wc-${s.n}" placeholder="Comentario para esta entrega (lo ve el participante en su semana)"></textarea></div>
+          <button class="btn btn--ghost btn--sm" onclick="addWeekComment('${escapeAttr(u.email)}',${s.n},'${viewerRole}')">Agregar comentario</button>
+          <h4 style="margin-top:.85rem">Archivos</h4>
           ${p.files.length?p.files.map(f=>`<div class="uploaded"><div><strong>${escapeHTML(f.name)}</strong><div class="meta">${fmtSize(f.size)} · ${fmtDate(f.ts)}</div></div><a class="btn btn--ghost btn--sm" download="${escapeAttr(f.name)}" href="${fileHref(f)}" target="_blank" rel="noopener">Descargar</a></div>`).join(""):'<p class="muted">— sin archivos —</p>'}
         </div>`;
       }).join("")}
